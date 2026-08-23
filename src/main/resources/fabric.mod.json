@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "legions_utils",
+  "version": "${version}",
+  "name": "Legions Utils",
+  "description": "Client-side utility tools for the Legions Minecraft server.",
+  "icon": "assets/legions_utils/icon.png",
+  "authors": ["AtomicSky1"],
+  "contributors": ["Henrikque"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.legions.client.LegionsClient"],
+    "modmenu": ["com.legions.client.compat.LegionsModMenuApi"]
+  },
+  "mixins": ["legions_utils.mixins.json"],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_version}",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

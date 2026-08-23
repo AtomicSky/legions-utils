@@ -1,0 +1,25 @@
+{
+  "required": false,
+  "package": "com.legions.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ClientPlayerInteractionManagerMixin",
+    "ClientPlayNetworkHandlerMixin",
+    "PlayerEntityRenderStateMixin",
+    "PlayerEntityRendererMixin",
+    "LivingEntityRendererMixin",
+    "RenderCommandQueueMixin",
+    "ArmorFeatureRendererMixin",
+    "GameTestDebugRendererMixin",
+    "BillboardParticleMixin",
+    "AtomicsFriendFoeOverlayMixin",
+    "AtomicsDualSpectateCameraMixin",
+    "AtomicsDualSpectateLockUiMixin",
+    "AtomicsClientScreenModuleMixin",
+    "AtomicsTeamCountOverlayMixin",
+    "AtomicsTierWeightManagerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

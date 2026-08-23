@@ -1,0 +1,15 @@
+.gradle/
+build/
+build-*/
+run/
+.idea/
+bin/
+.tmp_*/
+
+*.class
+*.log
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.zip
+*.tmp
+*.bak

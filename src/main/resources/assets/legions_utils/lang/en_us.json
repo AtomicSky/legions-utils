@@ -1,0 +1,13 @@
+{
+  "category.legions_utils.main": "Legions Utils",
+  "key.category.legions_utils.main": "Legions Utils",
+  "key.categories.legions_utils.main": "Legions Utils",
+  "category.legions_client.main": "Legions Utils",
+  "key.category.legions_client.main": "Legions Utils",
+  "key.categories.legions_client.main": "Legions Utils",
+  "key.legions_client.open_config": "Open Legions Utils",
+  "key.legions_utils.open_config": "Open Legions Utils",
+  "key.legions_client.ping_target": "Ping Target",
+  "key.legions_utils.ping_target": "Ping Target",
+  "modmenu.descriptionTranslation.legions_utils": "Client-side utility tools for the Legions Minecraft server."
+}
