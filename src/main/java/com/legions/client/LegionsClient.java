@@ -2,16 +2,16 @@ package com.legions.client;
 
 import com.legions.client.config.LegionsConfig;
 import com.legions.client.gui.LegionsClientScreen;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +23,7 @@ public class LegionsClient implements ClientModInitializer {
     public static LegionsConfig CONFIG;
 
     private static final boolean ATOMICS_CLIENT_LOADED = FabricLoader.getInstance().isModLoaded("atomics_client");
-    private static KeyBinding openConfigKey;
+    private static KeyMapping openConfigKey;
 
     @Override
     public void onInitializeClient() {
@@ -31,18 +31,18 @@ public class LegionsClient implements ClientModInitializer {
         LegionsRatingBackendCache.preloadAll();
 
         if (!ATOMICS_CLIENT_LOADED) {
-            KeyBinding.Category category = KeyBinding.Category.create(Identifier.of(MOD_ID, "main"));
-            openConfigKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
+            openConfigKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                     "key.legions_client.open_config",
-                    InputUtil.Type.KEYSYM,
+                    InputConstants.Type.KEYSYM,
                     GLFW.GLFW_KEY_O,
                     category
             ));
         }
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (openConfigKey != null && openConfigKey.wasPressed()) {
-                client.setScreen(new LegionsClientScreen(client.currentScreen));
+            while (openConfigKey != null && openConfigKey.consumeClick()) {
+                client.gui.setScreen(new LegionsClientScreen(client.gui.screen()));
             }
             LegionsAdaptivePerformance.tick(client);
             LegionsWorldBorder.tick(client);
@@ -59,9 +59,9 @@ public class LegionsClient implements ClientModInitializer {
             }
 
             LegionsPingController.receiveChatPing(message, sender);
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client.inGameHud != null) {
-                client.inGameHud.getChatHud().addMessage(LegionsPingController.cleanReceivedPingText(message));
+            Minecraft client = Minecraft.getInstance();
+            if (client.gui != null) {
+                client.gui.hud.getChat().addClientSystemMessage(LegionsPingController.cleanReceivedPingText(message));
             }
             return false;
         });
@@ -79,26 +79,27 @@ public class LegionsClient implements ClientModInitializer {
             LegionsPingController.receiveChatPing(message, null);
             return LegionsPingController.cleanReceivedPingText(message);
         });
-        HudRenderCallback.EVENT.register((context, tickCounter) -> LegionsHud.renderHud(context));
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MOD_ID, "hud"),
+                (context, tickCounter) -> LegionsHud.renderHud(context));
     }
 
     public static void saveConfig() {
         CONFIG.normalize().save(LegionsConfig.configPath());
     }
 
-    public static boolean enabled(MinecraftClient client) {
+    public static boolean enabled(Minecraft client) {
         return CONFIG != null && CONFIG.enabled && LegionsFeatures.isLegionsServer(client);
     }
 
-    public static boolean hudVisible(MinecraftClient client) {
-        return client != null && client.options != null && !client.options.hudHidden;
+    public static boolean hudVisible(Minecraft client) {
+        return client != null && client.gui != null && !client.gui.hud.isHidden();
     }
 
     public static float uiScaleFactor() {
         return CONFIG == null ? 1.0f : Math.max(50, Math.min(200, CONFIG.uiScale)) / 100.0f;
     }
 
-    public static boolean ratingNametagsEnabled(MinecraftClient client) {
+    public static boolean ratingNametagsEnabled(Minecraft client) {
         return CONFIG != null
                 && CONFIG.enabled
                 && CONFIG.ratingNametagsEnabled

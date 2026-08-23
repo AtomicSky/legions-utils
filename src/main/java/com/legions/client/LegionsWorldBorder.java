@@ -1,20 +1,19 @@
 package com.legions.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.DrawStyle;
-import net.minecraft.client.texture.Sprite;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.debug.gizmo.GizmoDrawing;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.gizmos.GizmoStyle;
+import net.minecraft.gizmos.Gizmos;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 
 public final class LegionsWorldBorder {
     private static final int MAX_SAMPLES = 384;
@@ -51,19 +50,19 @@ public final class LegionsWorldBorder {
     private static final double REDUCED_CONNECTOR_VISIBLE_RANGE = 16.0D;
     private static final float BORDER_STROKE_WIDTH = 1.25F;
     private static final Set<Identifier> GLITTER_TEXTURES = Set.of(
-            Identifier.ofVanilla("glitter_0"),
-            Identifier.ofVanilla("glitter_1"),
-            Identifier.ofVanilla("glitter_2"),
-            Identifier.ofVanilla("glitter_3"),
-            Identifier.ofVanilla("glitter_4"),
-            Identifier.ofVanilla("glitter_5"),
-            Identifier.ofVanilla("glitter_6"),
-            Identifier.ofVanilla("glitter_7")
+            Identifier.withDefaultNamespace("glitter_0"),
+            Identifier.withDefaultNamespace("glitter_1"),
+            Identifier.withDefaultNamespace("glitter_2"),
+            Identifier.withDefaultNamespace("glitter_3"),
+            Identifier.withDefaultNamespace("glitter_4"),
+            Identifier.withDefaultNamespace("glitter_5"),
+            Identifier.withDefaultNamespace("glitter_6"),
+            Identifier.withDefaultNamespace("glitter_7")
     );
 
     private static final ArrayList<Sample> samples = new ArrayList<>();
     private static final ArrayList<BorderSegment> borderSegments = new ArrayList<>();
-    private static ClientWorld sampledWorld;
+    private static ClientLevel sampledWorld;
     private static long lastParticleAt;
     private static long borderFadeStartedAt;
     private static int recomputeTicks;
@@ -76,33 +75,33 @@ public final class LegionsWorldBorder {
     private LegionsWorldBorder() {
     }
 
-    public static boolean captureGlitterParticle(Sprite sprite, double x, double y, double z) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static boolean captureGlitterParticle(TextureAtlasSprite sprite, double x, double y, double z) {
+        Minecraft client = Minecraft.getInstance();
         if (!isGlitterSprite(sprite) || !available(client)) {
             return false;
         }
 
-        ensureWorld(client.world);
+        ensureWorld(client.level);
         long now = System.currentTimeMillis();
         lastParticleAt = now;
         rememberSample(x, y, z, now);
         return true;
     }
 
-    public static boolean shouldHideGlitterParticle(Sprite sprite) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static boolean shouldHideGlitterParticle(TextureAtlasSprite sprite) {
+        Minecraft client = Minecraft.getInstance();
         return isGlitterSprite(sprite)
                 && available(client)
                 && LegionsClient.CONFIG.customWorldBorderHideGlitterParticles;
     }
 
-    public static void tick(MinecraftClient client) {
+    public static void tick(Minecraft client) {
         if (!available(client)) {
             reset();
             return;
         }
 
-        ensureWorld(client.world);
+        ensureWorld(client.level);
         long now = System.currentTimeMillis();
         boolean removed = samples.removeIf(sample -> now - sample.seenAt > SAMPLE_TTL_MILLIS);
         samplesChanged |= removed;
@@ -127,14 +126,14 @@ public final class LegionsWorldBorder {
     }
 
     public static void render() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (!available(client) || borderSegments.isEmpty()
                 || System.currentTimeMillis() - lastParticleAt > BORDER_TTL_MILLIS) {
             return;
         }
 
-        double minY = client.world.getBottomY();
-        double maxY = client.world.getTopYInclusive() + 1.0D;
+        double minY = client.level.getMinY();
+        double maxY = client.level.getMaxY() + 1.0D;
         long now = System.currentTimeMillis();
         if (borderFadeStartedAt == 0L) {
             borderFadeStartedAt = now;
@@ -148,7 +147,7 @@ public final class LegionsWorldBorder {
         int opacity = LegionsClient.CONFIG.customWorldBorderOpacity;
         int strokeColor = withAlpha(borderRgb, Math.round(255.0F * opacity / 100.0F * visibility));
         int fillColor = withAlpha(borderRgb, Math.round(255.0F * opacity / 100.0F * 0.23F * visibility));
-        DrawStyle wallStyle = DrawStyle.filled(fillColor);
+        GizmoStyle wallStyle = GizmoStyle.fill(fillColor);
         Entity camera = client.getCameraEntity() == null ? client.player : client.getCameraEntity();
         double cameraY = camera == null ? (minY + maxY) * 0.5D : camera.getY();
         double connectorRange = LegionsAdaptivePerformance.isActivelyReducing()
@@ -159,15 +158,15 @@ public final class LegionsWorldBorder {
         double lastConnectorY = Math.min(maxY, cameraY + connectorRange);
 
         for (BorderSegment segment : borderSegments) {
-            Vec3d bottomFirst = new Vec3d(segment.firstX, minY, segment.firstZ);
-            Vec3d bottomSecond = new Vec3d(segment.secondX, minY, segment.secondZ);
-            Vec3d topSecond = new Vec3d(segment.secondX, maxY, segment.secondZ);
-            Vec3d topFirst = new Vec3d(segment.firstX, maxY, segment.firstZ);
-            GizmoDrawing.quad(bottomFirst, bottomSecond, topSecond, topFirst, wallStyle);
+            Vec3 bottomFirst = new Vec3(segment.firstX, minY, segment.firstZ);
+            Vec3 bottomSecond = new Vec3(segment.secondX, minY, segment.secondZ);
+            Vec3 topSecond = new Vec3(segment.secondX, maxY, segment.secondZ);
+            Vec3 topFirst = new Vec3(segment.firstX, maxY, segment.firstZ);
+            Gizmos.rect(bottomFirst, bottomSecond, topSecond, topFirst, wallStyle);
 
             for (double y = firstConnectorY; y <= lastConnectorY; y += CONNECTOR_BAND_SPACING) {
-                GizmoDrawing.line(new Vec3d(segment.firstX, y, segment.firstZ),
-                        new Vec3d(segment.secondX, y, segment.secondZ),
+                Gizmos.line(new Vec3(segment.firstX, y, segment.firstZ),
+                        new Vec3(segment.secondX, y, segment.secondZ),
                         strokeColor, BORDER_STROKE_WIDTH);
             }
         }
@@ -187,15 +186,15 @@ public final class LegionsWorldBorder {
         selectedHeightY = Double.NaN;
     }
 
-    private static boolean available(MinecraftClient client) {
+    private static boolean available(Minecraft client) {
         return client != null
-                && client.world != null
+                && client.level != null
                 && LegionsClient.CONFIG != null
                 && LegionsClient.CONFIG.customWorldBorderEnabled
                 && LegionsClient.enabled(client);
     }
 
-    private static void ensureWorld(ClientWorld world) {
+    private static void ensureWorld(ClientLevel world) {
         if (sampledWorld == world) {
             return;
         }
@@ -203,10 +202,10 @@ public final class LegionsWorldBorder {
         sampledWorld = world;
     }
 
-    private static boolean isGlitterSprite(Sprite sprite) {
+    private static boolean isGlitterSprite(TextureAtlasSprite sprite) {
         return sprite != null
-                && sprite.getContents() != null
-                && GLITTER_TEXTURES.contains(sprite.getContents().getId());
+                && sprite.contents() != null
+                && GLITTER_TEXTURES.contains(sprite.contents().name());
     }
 
     private static int configuredBorderRgb() {

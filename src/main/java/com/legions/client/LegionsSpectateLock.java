@@ -1,17 +1,16 @@
 package com.legions.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
-
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 
 public final class LegionsSpectateLock {
     private static final double LOOK_RANGE = 128.0;
@@ -36,7 +35,7 @@ public final class LegionsSpectateLock {
     private LegionsSpectateLock() {
     }
 
-    public static void toggleLockToPlayer(MinecraftClient client, String playerName) {
+    public static void toggleLockToPlayer(Minecraft client, String playerName) {
         if (!LegionsClient.isAtomicsClientLoaded()) {
             sendAction(client, "Atomics Client is required for dual spectate lock");
             return;
@@ -66,8 +65,8 @@ public final class LegionsSpectateLock {
         return lockedPlayerName != null;
     }
 
-    public static boolean isLockedPair(PlayerEntity first, PlayerEntity second) {
-        if (lockedPlayerName == null || first == null || second == null || first.getUuid().equals(second.getUuid())) {
+    public static boolean isLockedPair(Player first, Player second) {
+        if (lockedPlayerName == null || first == null || second == null || first.getUUID().equals(second.getUUID())) {
             return false;
         }
         return isExternalSpectateCandidate(first)
@@ -75,7 +74,7 @@ public final class LegionsSpectateLock {
                 && (isLockedTo(LegionsFeatures.realUsername(first)) || isLockedTo(LegionsFeatures.realUsername(second)));
     }
 
-    public static void handleKeyPress(MinecraftClient client) {
+    public static void handleKeyPress(Minecraft client) {
         if (!LegionsClient.isAtomicsClientLoaded()) {
             sendAction(client, "Atomics Client is required for dual spectate lock");
             return;
@@ -84,7 +83,7 @@ public final class LegionsSpectateLock {
             sendAction(client, "Dual spectate lock is unavailable");
             return;
         }
-        PlayerEntity target = findLookedAtPlayer(client);
+        Player target = findLookedAtPlayer(client);
         if (target == null) {
             if (lockedPlayerName != null) {
                 unlock(client, true);
@@ -103,12 +102,12 @@ public final class LegionsSpectateLock {
         lockTo(client, name);
     }
 
-    public static void tick(MinecraftClient client) {
+    public static void tick(Minecraft client) {
         if (lockedPlayerName == null) {
             return;
         }
         if (!LegionsClient.isAtomicsClientLoaded() || !isLockAvailable(client) || client.player == null
-                || client.world == null) {
+                || client.level == null) {
             unlock(client, false);
             return;
         }
@@ -131,7 +130,7 @@ public final class LegionsSpectateLock {
             return;
         }
 
-        PlayerEntity lockedPlayer = findPlayer(client, lockedPlayerName);
+        Player lockedPlayer = findPlayer(client, lockedPlayerName);
         if (!isDualSpectateCandidate(client, lockedPlayer)) {
             if (autoFill) {
                 lockedPlayer = findAutoFillReplacement(client, pvp, lockedPlayerName);
@@ -159,18 +158,18 @@ public final class LegionsSpectateLock {
         }
     }
 
-    private static PlayerEntity findAutoFillReplacement(MinecraftClient client, Object pvp, String previousLockedName) {
-        PlayerEntity previousSecond = findReplacementPlayer(client, lastSecondPlayerName, previousLockedName);
+    private static Player findAutoFillReplacement(Minecraft client, Object pvp, String previousLockedName) {
+        Player previousSecond = findReplacementPlayer(client, lastSecondPlayerName, previousLockedName);
         if (previousSecond != null) {
             return previousSecond;
         }
 
         try {
-            PlayerEntity playerOne = findReplacementPlayer(client, getStringField(pvp, "dualSpectatePlayerOne"), previousLockedName);
+            Player playerOne = findReplacementPlayer(client, getStringField(pvp, "dualSpectatePlayerOne"), previousLockedName);
             if (playerOne != null) {
                 return playerOne;
             }
-            PlayerEntity playerTwo = findReplacementPlayer(client, getStringField(pvp, "dualSpectatePlayerTwo"), previousLockedName);
+            Player playerTwo = findReplacementPlayer(client, getStringField(pvp, "dualSpectatePlayerTwo"), previousLockedName);
             if (playerTwo != null) {
                 return playerTwo;
             }
@@ -181,18 +180,18 @@ public final class LegionsSpectateLock {
         return findBestAutoFillPlayer(client, previousLockedName);
     }
 
-    private static PlayerEntity findReplacementPlayer(MinecraftClient client, String playerName, String previousLockedName) {
+    private static Player findReplacementPlayer(Minecraft client, String playerName, String previousLockedName) {
         if (playerName == null || playerName.isBlank()
                 || previousLockedName != null && playerName.trim().equalsIgnoreCase(previousLockedName.trim())) {
             return null;
         }
 
-        PlayerEntity player = findPlayer(client, playerName);
+        Player player = findPlayer(client, playerName);
         return isDualSpectateCandidate(client, player) ? player : null;
     }
 
-    private static PlayerEntity findBestAutoFillPlayer(MinecraftClient client, String previousLockedName) {
-        PlayerEntity paired = findBestAutoFillPlayer(client, previousLockedName, true);
+    private static Player findBestAutoFillPlayer(Minecraft client, String previousLockedName) {
+        Player paired = findBestAutoFillPlayer(client, previousLockedName, true);
         if (paired != null) {
             return paired;
         }
@@ -202,15 +201,15 @@ public final class LegionsSpectateLock {
             return paired;
         }
 
-        PlayerEntity best = null;
+        Player best = null;
         double bestDistance = Double.POSITIVE_INFINITY;
         Entity camera = client.getCameraEntity() == null ? client.player : client.getCameraEntity();
-        for (PlayerEntity candidate : client.world.getPlayers()) {
+        for (Player candidate : client.level.players()) {
             if (!isReplacementCandidate(client, candidate, previousLockedName)) {
                 continue;
             }
 
-            double distance = camera.squaredDistanceTo(candidate);
+            double distance = camera.distanceToSqr(candidate);
             if (distance < bestDistance) {
                 bestDistance = distance;
                 best = candidate;
@@ -219,24 +218,24 @@ public final class LegionsSpectateLock {
         return best;
     }
 
-    private static PlayerEntity findBestAutoFillPlayer(MinecraftClient client, String previousLockedName,
+    private static Player findBestAutoFillPlayer(Minecraft client, String previousLockedName,
                                                        boolean requireOpponent) {
-        PlayerEntity bestFirst = null;
-        PlayerEntity bestSecond = null;
+        Player bestFirst = null;
+        Player bestSecond = null;
         double bestDistance = Double.POSITIVE_INFINITY;
-        for (PlayerEntity first : client.world.getPlayers()) {
+        for (Player first : client.level.players()) {
             if (!isReplacementCandidate(client, first, previousLockedName)) {
                 continue;
             }
 
-            for (PlayerEntity second : client.world.getPlayers()) {
+            for (Player second : client.level.players()) {
                 if (!isDualSpectateCandidate(client, second)
-                        || first.getUuid().equals(second.getUuid())
+                        || first.getUUID().equals(second.getUUID())
                         || requireOpponent && !LegionsFeatures.isOpponent(first, second)) {
                     continue;
                 }
 
-                double distance = first.squaredDistanceTo(second);
+                double distance = first.distanceToSqr(second);
                 if (distance < bestDistance) {
                     bestDistance = distance;
                     bestFirst = first;
@@ -248,12 +247,12 @@ public final class LegionsSpectateLock {
         return closerToCamera(client, bestFirst, bestSecond);
     }
 
-    private static boolean isReplacementCandidate(MinecraftClient client, PlayerEntity player, String previousLockedName) {
+    private static boolean isReplacementCandidate(Minecraft client, Player player, String previousLockedName) {
         return isDualSpectateCandidate(client, player)
                 && (previousLockedName == null || !LegionsFeatures.realUsername(player).equalsIgnoreCase(previousLockedName.trim()));
     }
 
-    private static PlayerEntity closerToCamera(MinecraftClient client, PlayerEntity first, PlayerEntity second) {
+    private static Player closerToCamera(Minecraft client, Player first, Player second) {
         if (first == null) {
             return second;
         }
@@ -262,26 +261,26 @@ public final class LegionsSpectateLock {
         }
 
         Entity camera = client.getCameraEntity() == null ? client.player : client.getCameraEntity();
-        return camera.squaredDistanceTo(first) <= camera.squaredDistanceTo(second) ? first : second;
+        return camera.distanceToSqr(first) <= camera.distanceToSqr(second) ? first : second;
     }
 
-    private static void updateLockedPair(MinecraftClient client, Object pvp, PlayerEntity lockedPlayer,
+    private static void updateLockedPair(Minecraft client, Object pvp, Player lockedPlayer,
                                          boolean autoFill) throws ReflectiveOperationException {
         setField(pvp, "dualSpectateEnabled", true);
         setField(pvp, "dualSpectateAutoFill", autoFill);
         String lockedName = LegionsFeatures.realUsername(lockedPlayer);
         setField(pvp, "dualSpectatePlayerOne", lockedName);
 
-        PlayerEntity second = findBestSecondPlayer(client, lockedPlayer);
+        Player second = findBestSecondPlayer(client, lockedPlayer);
         String secondName = second == null ? "" : LegionsFeatures.realUsername(second);
         setField(pvp, "dualSpectatePlayerTwo", secondName);
         lastSecondPlayerName = secondName;
         logPairChange(lockedName, secondName,
-                second == null ? -1.0 : lockedPlayer.squaredDistanceTo(second),
+                second == null ? -1.0 : lockedPlayer.distanceToSqr(second),
                 MISSING_SECOND_PLAYER_REASON);
     }
 
-    private static void lockTo(MinecraftClient client, String playerName) {
+    private static void lockTo(Minecraft client, String playerName) {
         try {
             Object pvp = atomicsPvp();
             if (!savedAtomicsState) {
@@ -305,11 +304,11 @@ public final class LegionsSpectateLock {
         }
     }
 
-    private static void unlock(MinecraftClient client, boolean notify) {
+    private static void unlock(Minecraft client, boolean notify) {
         unlock(client, notify, true);
     }
 
-    private static void unlock(MinecraftClient client, boolean notify, boolean restoreEnabled) {
+    private static void unlock(Minecraft client, boolean notify, boolean restoreEnabled) {
         String previous = lockedPlayerName;
         lockedPlayerName = null;
         lastSecondPlayerName = "";
@@ -334,8 +333,8 @@ public final class LegionsSpectateLock {
         }
     }
 
-    private static PlayerEntity findBestSecondPlayer(MinecraftClient client, PlayerEntity lockedPlayer) {
-        PlayerEntity opponent = findBestSecondPlayer(client, lockedPlayer, true);
+    private static Player findBestSecondPlayer(Minecraft client, Player lockedPlayer) {
+        Player opponent = findBestSecondPlayer(client, lockedPlayer, true);
         return opponent == null ? findBestSecondPlayer(client, lockedPlayer, false) : opponent;
     }
 
@@ -351,17 +350,17 @@ public final class LegionsSpectateLock {
         }
     }
 
-    private static PlayerEntity findBestSecondPlayer(MinecraftClient client, PlayerEntity lockedPlayer, boolean requireOpponent) {
-        PlayerEntity best = null;
+    private static Player findBestSecondPlayer(Minecraft client, Player lockedPlayer, boolean requireOpponent) {
+        Player best = null;
         double bestScore = Double.POSITIVE_INFINITY;
-        for (PlayerEntity candidate : client.world.getPlayers()) {
+        for (Player candidate : client.level.players()) {
             if (!isDualSpectateCandidate(client, candidate)
-                    || candidate.getUuid().equals(lockedPlayer.getUuid())
+                    || candidate.getUUID().equals(lockedPlayer.getUUID())
                     || requireOpponent && !LegionsFeatures.isOpponent(lockedPlayer, candidate)) {
                 continue;
             }
 
-            double distance = lockedPlayer.squaredDistanceTo(candidate);
+            double distance = lockedPlayer.distanceToSqr(candidate);
             if (distance > MAX_SECOND_PLAYER_DISTANCE_SQUARED) {
                 continue;
             }
@@ -402,69 +401,69 @@ public final class LegionsSpectateLock {
         lastLoggedMissingReason = "";
     }
 
-    private static double facingDot(PlayerEntity from, PlayerEntity to) {
-        Vec3d direction = to.getEyePos().subtract(from.getEyePos());
-        if (direction.lengthSquared() < 0.0001) {
+    private static double facingDot(Player from, Player to) {
+        Vec3 direction = to.getEyePosition().subtract(from.getEyePosition());
+        if (direction.lengthSqr() < 0.0001) {
             return 1.0;
         }
-        return from.getRotationVec(1.0f).normalize().dotProduct(direction.normalize());
+        return from.getViewVector(1.0f).normalize().dot(direction.normalize());
     }
 
-    private static boolean isLockAvailable(MinecraftClient client) {
+    private static boolean isLockAvailable(Minecraft client) {
         return LegionsClient.CONFIG != null
                 && LegionsClient.CONFIG.enabled
                 && client != null
                 && client.player != null
-                && client.world != null;
+                && client.level != null;
     }
 
-    private static boolean isDualSpectateCandidate(MinecraftClient client, PlayerEntity player) {
+    private static boolean isDualSpectateCandidate(Minecraft client, Player player) {
         return player != null
                 && client != null
                 && client.player != null
-                && !player.getUuid().equals(client.player.getUuid())
+                && !player.getUUID().equals(client.player.getUUID())
                 && isExternalSpectateCandidate(player);
     }
 
-    private static boolean isExternalSpectateCandidate(PlayerEntity player) {
+    private static boolean isExternalSpectateCandidate(Player player) {
         return player != null
                 && !player.isRemoved()
-                && !player.isDead()
+                && !player.isDeadOrDying()
                 && player.isAlive();
     }
 
-    private static PlayerEntity findLookedAtPlayer(MinecraftClient client) {
-        if (client == null || client.player == null || client.world == null) {
+    private static Player findLookedAtPlayer(Minecraft client) {
+        if (client == null || client.player == null || client.level == null) {
             return null;
         }
-        if (client.crosshairTarget instanceof EntityHitResult entityHitResult
-                && entityHitResult.getEntity() instanceof PlayerEntity player
+        if (client.hitResult instanceof EntityHitResult entityHitResult
+                && entityHitResult.getEntity() instanceof Player player
                 && isDualSpectateCandidate(client, player)) {
             return player;
         }
-        if (client.targetedEntity instanceof PlayerEntity player && isDualSpectateCandidate(client, player)) {
+        if (client.crosshairPickEntity instanceof Player player && isDualSpectateCandidate(client, player)) {
             return player;
         }
 
         Entity camera = client.getCameraEntity() == null ? client.player : client.getCameraEntity();
-        Vec3d start = camera.getCameraPosVec(1.0f);
-        Vec3d direction = camera.getRotationVec(1.0f);
-        Vec3d end = start.add(direction.multiply(LOOK_RANGE));
+        Vec3 start = camera.getEyePosition(1.0f);
+        Vec3 direction = camera.getViewVector(1.0f);
+        Vec3 end = start.add(direction.scale(LOOK_RANGE));
 
-        PlayerEntity best = null;
+        Player best = null;
         double bestDistanceSq = LOOK_RANGE * LOOK_RANGE;
-        for (PlayerEntity candidate : client.world.getPlayers()) {
+        for (Player candidate : client.level.players()) {
             if (!isDualSpectateCandidate(client, candidate)) {
                 continue;
             }
 
-            Box box = candidate.getBoundingBox().expand(Math.max(0.35, candidate.getTargetingMargin() + 0.3));
-            Optional<Vec3d> hit = box.raycast(start, end);
+            AABB box = candidate.getBoundingBox().inflate(Math.max(0.35, candidate.getPickRadius() + 0.3));
+            Optional<Vec3> hit = box.clip(start, end);
             if (hit.isEmpty()) {
                 continue;
             }
 
-            double distanceSq = start.squaredDistanceTo(hit.get());
+            double distanceSq = start.distanceToSqr(hit.get());
             if (distanceSq < bestDistanceSq) {
                 bestDistanceSq = distanceSq;
                 best = candidate;
@@ -473,12 +472,12 @@ public final class LegionsSpectateLock {
         return best;
     }
 
-    private static PlayerEntity findPlayer(MinecraftClient client, String name) {
-        if (client == null || client.world == null || name == null || name.isBlank()) {
+    private static Player findPlayer(Minecraft client, String name) {
+        if (client == null || client.level == null || name == null || name.isBlank()) {
             return null;
         }
         String normalized = name.trim();
-        for (PlayerEntity player : client.world.getPlayers()) {
+        for (Player player : client.level.players()) {
             if (LegionsFeatures.realUsername(player).equalsIgnoreCase(normalized)) {
                 return player;
             }
@@ -538,9 +537,9 @@ public final class LegionsSpectateLock {
         return field;
     }
 
-    private static void sendAction(MinecraftClient client, String message) {
+    private static void sendAction(Minecraft client, String message) {
         if (client != null && client.player != null) {
-            client.player.sendMessage(Text.literal(message), true);
+            client.player.sendOverlayMessage(Component.literal(message));
         }
     }
 }

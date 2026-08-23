@@ -1,12 +1,6 @@
 package com.legions.client.mixin;
 
 import com.legions.client.LegionsSpectateLock;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,6 +12,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 @Pseudo
 @Mixin(targets = "com.atomics.client.DualSpectateCamera")
@@ -32,7 +32,7 @@ public abstract class AtomicsDualSpectateCameraMixin {
     private static Class<?> atomicsClientClass;
 
     @Inject(method = "tick", at = @At("HEAD"), remap = false)
-    private static void legions_client$forceDualSpectateDefaults(MinecraftClient client, CallbackInfo ci) {
+    private static void legions_client$forceDualSpectateDefaults(Minecraft client, CallbackInfo ci) {
         if (!LegionsSpectateLock.hasLock()) {
             return;
         }
@@ -40,24 +40,24 @@ public abstract class AtomicsDualSpectateCameraMixin {
     }
 
     @Inject(method = "resolveCameraPosition", at = @At("RETURN"), cancellable = true, remap = false)
-    private static void legions_client$preferClearCameraPosition(MinecraftClient client, PlayerEntity first,
-                                                                 PlayerEntity second, Vec3d center, Vec3d side,
-                                                                 float distance, Vec3d lookTarget,
-                                                                 Vec3d preferredCameraPos, @Coerce Object pvp,
-                                                                 CallbackInfoReturnable<Vec3d> cir) {
+    private static void legions_client$preferClearCameraPosition(Minecraft client, Player first,
+                                                                 Player second, Vec3 center, Vec3 side,
+                                                                 float distance, Vec3 lookTarget,
+                                                                 Vec3 preferredCameraPos, @Coerce Object pvp,
+                                                                 CallbackInfoReturnable<Vec3> cir) {
         if (!LegionsSpectateLock.isLockedPair(first, second)) {
             return;
         }
 
-        Vec3d preferred = cir.getReturnValue();
-        Vec3d adjusted = findClearCameraPosition(client, lookTarget, preferred);
+        Vec3 preferred = cir.getReturnValue();
+        Vec3 adjusted = findClearCameraPosition(client, lookTarget, preferred);
         if (adjusted != null) {
             cir.setReturnValue(adjusted);
         }
     }
 
     @Inject(method = "isWithinYDifference", at = @At("HEAD"), cancellable = true, remap = false)
-    private static void legions_client$onlyLimitYDifferenceInOverhead(PlayerEntity first, PlayerEntity second,
+    private static void legions_client$onlyLimitYDifferenceInOverhead(Player first, Player second,
                                                                       @Coerce Object pvp,
                                                                       CallbackInfoReturnable<Boolean> cir) {
         if (!LegionsSpectateLock.isLockedPair(first, second)) {
@@ -70,8 +70,8 @@ public abstract class AtomicsDualSpectateCameraMixin {
     }
 
     @Inject(method = "isAllowedSpectatePair", at = @At("HEAD"), cancellable = true, remap = false)
-    private static void legions_client$allowExplicitLockedPair(MinecraftClient client, PlayerEntity first,
-                                                               PlayerEntity second, @Coerce Object pvp,
+    private static void legions_client$allowExplicitLockedPair(Minecraft client, Player first,
+                                                               Player second, @Coerce Object pvp,
                                                                @Coerce Object teamRules,
                                                                CallbackInfoReturnable<Boolean> cir) {
         if (LegionsSpectateLock.isLockedPair(first, second)) {
@@ -79,8 +79,8 @@ public abstract class AtomicsDualSpectateCameraMixin {
         }
     }
 
-    private static Vec3d findClearCameraPosition(MinecraftClient client, Vec3d lookTarget, Vec3d preferred) {
-        if (client == null || client.world == null || lookTarget == null || preferred == null) {
+    private static Vec3 findClearCameraPosition(Minecraft client, Vec3 lookTarget, Vec3 preferred) {
+        if (client == null || client.level == null || lookTarget == null || preferred == null) {
             return preferred;
         }
 
@@ -88,17 +88,17 @@ public abstract class AtomicsDualSpectateCameraMixin {
             return preferred;
         }
 
-        Vec3d clipped = clipBeforeWall(client, lookTarget, preferred);
+        Vec3 clipped = clipBeforeWall(client, lookTarget, preferred);
         if (isUsableCameraPosition(client, lookTarget, clipped)) {
             return clipped;
         }
 
-        Vec3d direction = preferred.subtract(lookTarget);
-        if (direction.lengthSquared() < 1.0E-4D) {
+        Vec3 direction = preferred.subtract(lookTarget);
+        if (direction.lengthSqr() < 1.0E-4D) {
             return preferred;
         }
 
-        Vec3d candidate = usableCameraCandidate(client, lookTarget, preferred.add(0.0D, 0.75D, 0.0D));
+        Vec3 candidate = usableCameraCandidate(client, lookTarget, preferred.add(0.0D, 0.75D, 0.0D));
         if (candidate != null) {
             return candidate;
         }
@@ -114,58 +114,58 @@ public abstract class AtomicsDualSpectateCameraMixin {
         if (candidate != null) {
             return candidate;
         }
-        candidate = usableCameraCandidate(client, lookTarget, lookTarget.add(direction.multiply(0.75D)));
+        candidate = usableCameraCandidate(client, lookTarget, lookTarget.add(direction.scale(0.75D)));
         if (candidate != null) {
             return candidate;
         }
-        candidate = usableCameraCandidate(client, lookTarget, lookTarget.add(direction.multiply(0.5D)));
+        candidate = usableCameraCandidate(client, lookTarget, lookTarget.add(direction.scale(0.5D)));
         return candidate == null ? preferred : candidate;
     }
 
-    private static Vec3d usableCameraCandidate(MinecraftClient client, Vec3d lookTarget, Vec3d candidate) {
-        Vec3d clipped = clipBeforeWall(client, lookTarget, candidate);
+    private static Vec3 usableCameraCandidate(Minecraft client, Vec3 lookTarget, Vec3 candidate) {
+        Vec3 clipped = clipBeforeWall(client, lookTarget, candidate);
         return isUsableCameraPosition(client, lookTarget, clipped) ? clipped : null;
     }
 
-    private static boolean isUsableCameraPosition(MinecraftClient client, Vec3d lookTarget, Vec3d position) {
+    private static boolean isUsableCameraPosition(Minecraft client, Vec3 lookTarget, Vec3 position) {
         return position != null
-                && position.squaredDistanceTo(lookTarget) >= MIN_USEFUL_CAMERA_DISTANCE_SQUARED
+                && position.distanceToSqr(lookTarget) >= MIN_USEFUL_CAMERA_DISTANCE_SQUARED
                 && isClearAt(client, position);
     }
 
-    private static Vec3d clipBeforeWall(MinecraftClient client, Vec3d start, Vec3d end) {
+    private static Vec3 clipBeforeWall(Minecraft client, Vec3 start, Vec3 end) {
         HitResult hit = raycast(client, start, end);
         if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
             return end;
         }
 
-        Vec3d direction = end.subtract(start);
-        if (direction.lengthSquared() < 1.0E-4D) {
+        Vec3 direction = end.subtract(start);
+        if (direction.lengthSqr() < 1.0E-4D) {
             return end;
         }
 
-        Vec3d clipped = hit.getPos().subtract(direction.normalize().multiply(WALL_BACKOFF));
-        return clipped.squaredDistanceTo(start) < end.squaredDistanceTo(start) ? clipped : end;
+        Vec3 clipped = hit.getLocation().subtract(direction.normalize().scale(WALL_BACKOFF));
+        return clipped.distanceToSqr(start) < end.distanceToSqr(start) ? clipped : end;
     }
 
-    private static boolean hasClearPath(MinecraftClient client, Vec3d start, Vec3d end) {
+    private static boolean hasClearPath(Minecraft client, Vec3 start, Vec3 end) {
         HitResult hit = raycast(client, start, end);
         return hit == null || hit.getType() != HitResult.Type.BLOCK;
     }
 
-    private static HitResult raycast(MinecraftClient client, Vec3d start, Vec3d end) {
-        return client.world.raycast(new RaycastContext(
+    private static HitResult raycast(Minecraft client, Vec3 start, Vec3 end) {
+        return client.level.clip(new ClipContext(
                 start,
                 end,
-                RaycastContext.ShapeType.COLLIDER,
-                RaycastContext.FluidHandling.NONE,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
                 client.player
         ));
     }
 
-    private static boolean isClearAt(MinecraftClient client, Vec3d position) {
-        BlockPos blockPos = BlockPos.ofFloored(position);
-        return client.world.getBlockState(blockPos).getCollisionShape(client.world, blockPos).isEmpty();
+    private static boolean isClearAt(Minecraft client, Vec3 position) {
+        BlockPos blockPos = BlockPos.containing(position);
+        return client.level.getBlockState(blockPos).getCollisionShape(client.level, blockPos).isEmpty();
     }
 
     private static void forceDualSpectateDefaults() {

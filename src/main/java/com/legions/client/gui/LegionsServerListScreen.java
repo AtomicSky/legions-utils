@@ -2,15 +2,14 @@ package com.legions.client.gui;
 
 import com.legions.client.LegionsClient;
 import com.legions.client.config.LegionsConfig;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.Text;
-
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 public class LegionsServerListScreen extends Screen {
     private static final int BUTTON_HEIGHT = 20;
@@ -32,7 +31,7 @@ public class LegionsServerListScreen extends Screen {
     private int panelBottom = 330;
 
     public LegionsServerListScreen(Screen parent) {
-        super(Text.literal("Server IPs"));
+        super(Component.literal("Server IPs"));
         this.parent = parent;
     }
 
@@ -63,14 +62,14 @@ public class LegionsServerListScreen extends Screen {
         int clampedScroll = clamp(scrollOffset, 0, maxScroll);
         if (scrollOffset != clampedScroll) {
             scrollOffset = clampedScroll;
-            clearAndInit();
+            rebuildWidgets();
             return;
         }
         panelBottom = visibleBottom();
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, this.width, this.height, 0x99000000);
         int panelWidth = panelWidth();
         int x = (this.width - panelWidth) / 2;
@@ -81,11 +80,11 @@ public class LegionsServerListScreen extends Screen {
             context.fill(x, bottom - 1, x + panelWidth, bottom, 0xFF263241);
             renderScrollbar(context, x, panelWidth, bottom);
         }
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 12, 0xFFE7F0FF);
+        context.centeredText(this.font, this.title, this.width / 2, 12, 0xFFE7F0FF);
         for (Label label : labels) {
-            context.drawTextWithShadow(textRenderer, Text.literal(label.text()), label.x(), label.y(), label.color());
+            context.text(font, Component.literal(label.text()), label.x(), label.y(), label.color());
         }
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
     @Override
@@ -98,7 +97,7 @@ public class LegionsServerListScreen extends Screen {
             }
             scrollOffset = clamp(scrollOffset - delta, 0, maxScroll);
             if (scrollOffset != oldOffset) {
-                clearAndInit();
+                rebuildWidgets();
                 return true;
             }
         }
@@ -106,13 +105,13 @@ public class LegionsServerListScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         LegionsClient.saveConfig();
-        MinecraftClient.getInstance().setScreen(parent);
+        Minecraft.getInstance().gui.setScreen(parent);
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 
@@ -120,12 +119,12 @@ public class LegionsServerListScreen extends Screen {
         int gap = 8;
         int buttonWidth = (width - gap) / 2;
         int y = 34;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Add Server"), button -> {
+        addRenderableWidget(Button.builder(Component.literal("Add Server"), button -> {
             LegionsClient.CONFIG.allowedServerAddresses.add("");
-            clearAndInit();
-        }).dimensions(x, y, buttonWidth, BUTTON_HEIGHT).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> close())
-                .dimensions(x + buttonWidth + gap, y, buttonWidth, BUTTON_HEIGHT).build());
+            rebuildWidgets();
+        }).bounds(x, y, buttonWidth, BUTTON_HEIGHT).build());
+        addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
+                .bounds(x + buttonWidth + gap, y, buttonWidth, BUTTON_HEIGHT).build());
     }
 
     private void addServerRow(int index, int x, int y, int width) {
@@ -137,27 +136,27 @@ public class LegionsServerListScreen extends Screen {
         int labelWidth = 78;
         int fieldX = x + labelWidth;
         int fieldWidth = Math.max(120, width - labelWidth - DELETE_WIDTH - FIELD_GAP);
-        TextFieldWidget field = new TextFieldWidget(this.textRenderer, fieldX, y, fieldWidth, BUTTON_HEIGHT, Text.literal("Server " + (index + 1)));
-        field.setText(LegionsClient.CONFIG.allowedServerAddresses.get(index));
-        field.setPlaceholder(Text.literal("legions"));
-        field.setChangedListener(value -> {
+        EditBox field = new EditBox(this.font, fieldX, y, fieldWidth, BUTTON_HEIGHT, Component.literal("Server " + (index + 1)));
+        field.setValue(LegionsClient.CONFIG.allowedServerAddresses.get(index));
+        field.setHint(Component.literal("legions"));
+        field.setResponder(value -> {
             if (index >= 0 && index < LegionsClient.CONFIG.allowedServerAddresses.size()) {
                 LegionsClient.CONFIG.allowedServerAddresses.set(index, value);
             }
         });
-        addDrawableChild(field);
+        addRenderableWidget(field);
 
-        ButtonWidget delete = ButtonWidget.builder(Text.literal("Delete"), button -> {
+        Button delete = Button.builder(Component.literal("Delete"), button -> {
             if (LegionsClient.CONFIG.allowedServerAddresses.size() > 1) {
                 LegionsClient.CONFIG.allowedServerAddresses.remove(index);
-                clearAndInit();
+                rebuildWidgets();
             }
-        }).dimensions(fieldX + fieldWidth + FIELD_GAP, y, DELETE_WIDTH, BUTTON_HEIGHT).build();
+        }).bounds(fieldX + fieldWidth + FIELD_GAP, y, DELETE_WIDTH, BUTTON_HEIGHT).build();
         delete.active = LegionsClient.CONFIG.allowedServerAddresses.size() > 1;
-        addDrawableChild(delete);
+        addRenderableWidget(delete);
     }
 
-    private void renderScrollbar(DrawContext context, int x, int panelWidth, int bottom) {
+    private void renderScrollbar(GuiGraphicsExtractor context, int x, int panelWidth, int bottom) {
         if (maxScroll <= 0 || contentHeight <= 0) {
             return;
         }

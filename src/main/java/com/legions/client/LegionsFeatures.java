@@ -1,18 +1,17 @@
 package com.legions.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.scores.PlayerTeam;
 import com.legions.client.render.LegionsPlayerOverlayColorContext;
 
 import java.lang.reflect.Field;
@@ -65,15 +64,15 @@ public final class LegionsFeatures {
     private LegionsFeatures() {
     }
 
-    public static boolean isLegionsServer(MinecraftClient client) {
+    public static boolean isLegionsServer(Minecraft client) {
         if (client == null) {
             return false;
         }
-        ServerInfo server = client.getCurrentServerEntry();
-        if (server == null || server.address == null) {
-            return client.isIntegratedServerRunning();
+        ServerData server = client.getCurrentServer();
+        if (server == null || server.ip == null) {
+            return client.hasSingleplayerServer();
         }
-        String address = normalizedCurrentServerAddress(server.address);
+        String address = normalizedCurrentServerAddress(server.ip);
         if (LegionsClient.CONFIG == null || LegionsClient.CONFIG.allowedServerAddresses == null) {
             return address.contains("legions");
         }
@@ -141,8 +140,8 @@ public final class LegionsFeatures {
         return cachedNormalizedServerAddress;
     }
 
-    public static Text customizeNametag(PlayerEntity player, Text original) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static Component customizeNametag(Player player, Component original) {
+        Minecraft client = Minecraft.getInstance();
         if (!LegionsClient.ratingNametagsEnabled(client)) {
             return original;
         }
@@ -153,32 +152,32 @@ public final class LegionsFeatures {
         if (tag == null) {
             return original;
         }
-        Text suffix = getNametagSuffix(player, tag);
+        Component suffix = getNametagSuffix(player, tag);
         if (suffix == null) {
             return original;
         }
-        Text base = ATOMICS_CLIENT_LOADED ? Text.literal(realUsername(player)) : original;
+        Component base = ATOMICS_CLIENT_LOADED ? Component.literal(realUsername(player)) : original;
         String originalText = original.getString();
         if (!ATOMICS_CLIENT_LOADED && originalText.endsWith(suffix.getString())) {
             return original;
         }
-        return Text.empty().append(base).append(suffix);
+        return Component.empty().append(base).append(suffix);
     }
 
-    private static Text getNametagSuffix(PlayerEntity player, TabListTag tag) {
+    private static Component getNametagSuffix(Player player, TabListTag tag) {
         if (tag.isUnknown()) {
-            Text atomicsTier = getAtomicsTierSuffix(player);
+            Component atomicsTier = getAtomicsTierSuffix(player);
             if (atomicsTier != null && !atomicsTier.getString().isBlank()) {
-                return Text.empty().append(Text.literal(" ")).append(atomicsTier);
+                return Component.empty().append(Component.literal(" ")).append(atomicsTier);
             }
         }
 
         String separator = ATOMICS_CLIENT_LOADED ? " " : " | ";
-        return Text.empty().append(Text.literal(separator)).append(formatLegionsTag(tag));
+        return Component.empty().append(Component.literal(separator)).append(formatLegionsTag(tag));
     }
 
-    public static int getOutlineColor(PlayerEntity player) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static int getOutlineColor(Player player) {
+        Minecraft client = Minecraft.getInstance();
         if (!LegionsClient.enabled(client) || client.player == null) {
             return 0;
         }
@@ -195,19 +194,19 @@ public final class LegionsFeatures {
         return 0;
     }
 
-    public static int getOverlayStyle(PlayerEntity player) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static int getOverlayStyle(Player player) {
+        Minecraft client = Minecraft.getInstance();
         if (!LegionsPingController.isMarkedPlayer(player) && isAutomaticFoeOverlay(client, player)) {
             return LegionsPlayerOverlayColorContext.STYLE_ARMOR_FULL;
         }
         return LegionsPlayerOverlayColorContext.STYLE_FULL;
     }
 
-    public static int getFilledOverlayColor(PlayerEntity player, int overlayColor, int overlayStyle) {
+    public static int getFilledOverlayColor(Player player, int overlayColor, int overlayStyle) {
         if (overlayColor == 0 || !usesFilledOverlay(overlayStyle)) {
             return -1;
         }
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (!usesHighlightOverlayAlpha(client, player)) {
             return overlayColor;
         }
@@ -223,12 +222,12 @@ public final class LegionsFeatures {
                 || overlayStyle == LegionsPlayerOverlayColorContext.STYLE_ARMOR_FULL;
     }
 
-    private static boolean usesHighlightOverlayAlpha(MinecraftClient client, PlayerEntity player) {
+    private static boolean usesHighlightOverlayAlpha(Minecraft client, Player player) {
         return !LegionsPingController.isMarkedPlayer(player)
                 && (isAutomaticFoeOverlay(client, player) || shouldHighlightTeamAsSpectator(client, player));
     }
 
-    private static boolean isAutomaticFoeOverlay(MinecraftClient client, PlayerEntity player) {
+    private static boolean isAutomaticFoeOverlay(Minecraft client, Player player) {
         return LegionsClient.enabled(client)
                 && client.player != null
                 && player != null
@@ -237,7 +236,7 @@ public final class LegionsFeatures {
                 && !shouldHighlightTeamAsSpectator(client, player);
     }
 
-    private static int highlightOverlayAlpha(PlayerEntity player) {
+    private static int highlightOverlayAlpha(Player player) {
         if (LegionsClient.CONFIG == null || !LegionsClient.CONFIG.dynamicHighlightOpacityEnabled) {
             return MAX_HIGHLIGHT_OVERLAY_ALPHA;
         }
@@ -245,7 +244,7 @@ public final class LegionsFeatures {
             return MIN_HIGHLIGHT_OVERLAY_ALPHA;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         TabListTag tag = getRatingTag(client, realUsername(player));
         if (tag == null || tag.isUnknown()) {
             return MIN_HIGHLIGHT_OVERLAY_ALPHA;
@@ -257,9 +256,9 @@ public final class LegionsFeatures {
         return MIN_HIGHLIGHT_OVERLAY_ALPHA + Math.round(opacity * (MAX_HIGHLIGHT_OVERLAY_ALPHA - MIN_HIGHLIGHT_OVERLAY_ALPHA));
     }
 
-    public static boolean shouldHidePlayerModel(PlayerEntity player) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (!LegionsClient.enabled(client) || client.world == null || client.player == null || player == null) {
+    public static boolean shouldHidePlayerModel(Player player) {
+        Minecraft client = Minecraft.getInstance();
+        if (!LegionsClient.enabled(client) || client.level == null || client.player == null || player == null) {
             return false;
         }
         if (player == client.player || LegionsPingController.isMarkedPlayer(player)) {
@@ -270,14 +269,14 @@ public final class LegionsFeatures {
         }
 
         boolean opponent = isOpponent(client.player, player);
-        if (opponent && opponentLimitEnabled() && !visibleOpponentCache(client).contains(player.getUuid())) {
+        if (opponent && opponentLimitEnabled() && !visibleOpponentCache(client).contains(player.getUUID())) {
             return true;
         }
 
         return shouldCullForRenderOptimization(client, player);
     }
 
-    private static boolean shouldCullForRenderOptimization(MinecraftClient client, PlayerEntity player) {
+    private static boolean shouldCullForRenderOptimization(Minecraft client, Player player) {
         if (!playerRenderOptimizationEnabled()) {
             return false;
         }
@@ -285,18 +284,18 @@ public final class LegionsFeatures {
         int renderDistance = LegionsAdaptivePerformance.effectivePlayerRenderDistance(
                 LegionsClient.CONFIG.playerRenderDistance);
         double maxDistanceSquared = (double) renderDistance * renderDistance;
-        return player.squaredDistanceTo(client.player) > maxDistanceSquared;
+        return player.distanceToSqr(client.player) > maxDistanceSquared;
     }
 
-    private static Set<UUID> visibleOpponentCache(MinecraftClient client) {
-        int playerCount = client.world.getPlayers().size();
-        long tick = client.world.getTime();
+    private static Set<UUID> visibleOpponentCache(Minecraft client) {
+        int playerCount = client.level.players().size();
+        long tick = client.level.getGameTime();
         int visibleOpponents = LegionsAdaptivePerformance.effectiveOpponentLimit(
                 LegionsClient.CONFIG.opponentLimit);
         boolean limitEnabled = opponentLimitEnabled();
         if (visibleOpponentCacheTick == tick
                 && visibleOpponentCacheLocalPlayer != null
-                && visibleOpponentCacheLocalPlayer.equals(client.player.getUuid())
+                && visibleOpponentCacheLocalPlayer.equals(client.player.getUUID())
                 && visibleOpponentCacheLimit == visibleOpponents
                 && visibleOpponentCacheEnabled == limitEnabled
                 && visibleOpponentCachePlayerCount == playerCount) {
@@ -305,7 +304,7 @@ public final class LegionsFeatures {
 
         visibleOpponentCache.clear();
         visibleOpponentCacheTick = tick;
-        visibleOpponentCacheLocalPlayer = client.player.getUuid();
+        visibleOpponentCacheLocalPlayer = client.player.getUUID();
         visibleOpponentCacheLimit = visibleOpponents;
         visibleOpponentCacheEnabled = limitEnabled;
         visibleOpponentCachePlayerCount = playerCount;
@@ -314,16 +313,16 @@ public final class LegionsFeatures {
             return visibleOpponentCache;
         }
 
-        PlayerEntity localPlayer = client.player;
+        Player localPlayer = client.player;
         if (visibleOpponents == 0) {
             return visibleOpponentCache;
         }
 
         ensureVisibleOpponentCapacity(visibleOpponents);
         int selectedOpponents = 0;
-        for (PlayerEntity candidate : client.world.getPlayers()) {
+        for (Player candidate : client.level.players()) {
             if (isOpponent(localPlayer, candidate)) {
-                selectedOpponents = insertVisibleOpponent(candidate.getUuid(), candidate.squaredDistanceTo(localPlayer),
+                selectedOpponents = insertVisibleOpponent(candidate.getUUID(), candidate.distanceToSqr(localPlayer),
                         visibleOpponents, selectedOpponents);
             }
         }
@@ -370,26 +369,26 @@ public final class LegionsFeatures {
         return Math.min(size + 1, limit);
     }
 
-    public static boolean shouldHidePlayerRenderState(PlayerEntityRenderState state) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null || state == null) {
+    public static boolean shouldHidePlayerRenderState(AvatarRenderState state) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.level == null || state == null) {
             return false;
         }
-        Entity entity = client.world.getEntityById(state.id);
-        return entity instanceof PlayerEntity player && shouldHidePlayerModel(player);
+        Entity entity = client.level.getEntity(state.id);
+        return entity instanceof Player player && shouldHidePlayerModel(player);
     }
 
-    public static int getRating(MinecraftClient client, String playerName) {
+    public static int getRating(Minecraft client, String playerName) {
         TabListTag tag = getRatingTag(client, playerName);
         return tag == null ? -1 : tag.numericRating;
     }
 
-    public static int getQuips(MinecraftClient client, String playerName) {
+    public static int getQuips(Minecraft client, String playerName) {
         return getRating(client, playerName);
     }
 
-    public static boolean shouldSuppressAtomicsTierSuffix(PlayerEntity player) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static boolean shouldSuppressAtomicsTierSuffix(Player player) {
+        Minecraft client = Minecraft.getInstance();
         if (!LegionsClient.ratingNametagsEnabled(client) || player == null) {
             return false;
         }
@@ -397,32 +396,32 @@ public final class LegionsFeatures {
         return tag != null && !tag.isUnknown();
     }
 
-    public static Text getAtomicsTierSlotReplacement(PlayerEntity player) {
+    public static Component getAtomicsTierSlotReplacement(Player player) {
         if (!shouldUseAtomicsTierSlot(player)) {
             return null;
         }
-        TabListTag tag = getRatingTag(MinecraftClient.getInstance(), realUsername(player));
+        TabListTag tag = getRatingTag(Minecraft.getInstance(), realUsername(player));
         return tag == null || tag.isUnknown() ? null : formatLegionsTag(tag);
     }
 
-    public static Text getAtomicsUnknownTierSlotFallback(PlayerEntity player) {
+    public static Component getAtomicsUnknownTierSlotFallback(Player player) {
         if (!shouldUseAtomicsTierSlot(player)) {
             return null;
         }
-        TabListTag tag = getRatingTag(MinecraftClient.getInstance(), realUsername(player));
+        TabListTag tag = getRatingTag(Minecraft.getInstance(), realUsername(player));
         return tag != null && tag.isUnknown() ? formatLegionsTag(tag) : null;
     }
 
-    private static boolean shouldUseAtomicsTierSlot(PlayerEntity player) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private static boolean shouldUseAtomicsTierSlot(Player player) {
+        Minecraft client = Minecraft.getInstance();
         if (!ATOMICS_CLIENT_LOADED || player == null || !LegionsClient.ratingNametagsEnabled(client)) {
             return false;
         }
         return atomicsTierSlotEnabled(client);
     }
 
-    private static boolean atomicsTierSlotEnabled(MinecraftClient client) {
-        long tick = client.world == null ? Long.MIN_VALUE : client.world.getTime();
+    private static boolean atomicsTierSlotEnabled(Minecraft client) {
+        long tick = client.level == null ? Long.MIN_VALUE : client.level.getGameTime();
         if (atomicsTierSlotCacheTick == tick) {
             return atomicsTierSlotEnabledCache;
         }
@@ -444,15 +443,15 @@ public final class LegionsFeatures {
         }
     }
 
-    private static TabListTag getTabListTag(MinecraftClient client, String playerName) {
-        if (client == null || client.getNetworkHandler() == null || playerName == null) {
+    private static TabListTag getTabListTag(Minecraft client, String playerName) {
+        if (client == null || client.getConnection() == null || playerName == null) {
             return null;
         }
         refreshTabListTagCache(client);
         return tabListTagCache.get(normalizedPlayerName(playerName));
     }
 
-    private static TabListTag getRatingTag(MinecraftClient client, String playerName) {
+    private static TabListTag getRatingTag(Minecraft client, String playerName) {
         TabListTag tabListTag = getTabListTag(client, playerName);
         if (tabListTag != null && !tabListTag.isUnknown()) {
             return tabListTag;
@@ -468,7 +467,7 @@ public final class LegionsFeatures {
         return LegionsClient.ratingNametagsEnabled(client) ? unknownRatingTag() : null;
     }
 
-    private static TabListTag getBackendRatingTag(MinecraftClient client, String playerName) {
+    private static TabListTag getBackendRatingTag(Minecraft client, String playerName) {
         if (!canUseBackendRatings(client) || playerName == null || playerName.isBlank()) {
             return null;
         }
@@ -489,14 +488,14 @@ public final class LegionsFeatures {
         return tag;
     }
 
-    private static boolean canUseBackendRatings(MinecraftClient client) {
+    private static boolean canUseBackendRatings(Minecraft client) {
         return LegionsClient.enabled(client) || LegionsClient.ratingNametagsEnabled(client);
     }
 
-    private static void refreshTabListTagCache(MinecraftClient client) {
-        ClientPlayNetworkHandler networkHandler = client.getNetworkHandler();
-        int size = networkHandler.getPlayerList().size();
-        long tick = client.world == null ? Long.MIN_VALUE : client.world.getTime();
+    private static void refreshTabListTagCache(Minecraft client) {
+        ClientPacketListener networkHandler = client.getConnection();
+        int size = networkHandler.getOnlinePlayers().size();
+        long tick = client.level == null ? Long.MIN_VALUE : client.level.getGameTime();
         if (tabListTagCacheHandler == networkHandler && tabListTagCacheTick == tick && tabListTagCacheSize == size) {
             return;
         }
@@ -506,8 +505,8 @@ public final class LegionsFeatures {
         tabListTagCacheTick = tick;
         tabListTagCacheSize = size;
 
-        for (PlayerListEntry entry : networkHandler.getPlayerList()) {
-            Text displayName = entry.getDisplayName();
+        for (PlayerInfo entry : networkHandler.getOnlinePlayers()) {
+            Component displayName = entry.getTabListDisplayName();
             String text = displayName == null ? entry.getProfile().name() : displayName.getString();
             TabListTag tag = parseTabListTag(text);
             if (tag != null) {
@@ -516,14 +515,14 @@ public final class LegionsFeatures {
         }
     }
 
-    private static Text getAtomicsTierSuffix(PlayerEntity player) {
+    private static Component getAtomicsTierSuffix(Player player) {
         Method method = getAtomicsTierSuffixMethod();
         if (method == null) {
             return null;
         }
         try {
             Object value = method.invoke(null, player);
-            return value instanceof Text text ? text : null;
+            return value instanceof Component text ? text : null;
         } catch (ReflectiveOperationException | RuntimeException e) {
             LegionsClient.LOGGER.debug("Failed to get Atomics tier suffix for {}.", realUsername(player), e);
             return null;
@@ -540,7 +539,7 @@ public final class LegionsFeatures {
         atomicsTierSuffixMethodChecked = true;
         try {
             Class<?> manager = Class.forName("com.atomics.client.TierWeightManager");
-            atomicsTierSuffixMethod = manager.getDeclaredMethod("getNameSuffix", PlayerEntity.class);
+            atomicsTierSuffixMethod = manager.getDeclaredMethod("getNameSuffix", Player.class);
             atomicsTierSuffixMethod.setAccessible(true);
         } catch (ReflectiveOperationException | RuntimeException e) {
             LegionsClient.LOGGER.debug("Atomics tier suffix fallback is not available.", e);
@@ -596,12 +595,12 @@ public final class LegionsFeatures {
         return tag.numericRating >= 2000 ? style.withBold(true) : style;
     }
 
-    private static Text formatLegionsTag(TabListTag tag) {
+    private static Component formatLegionsTag(TabListTag tag) {
         Style style = quipStyle(tag);
-        return Text.empty()
-                .append(Text.literal("[").setStyle(style))
-                .append(Text.literal(tag.value).setStyle(style))
-                .append(Text.literal("]").setStyle(style));
+        return Component.empty()
+                .append(Component.literal("[").setStyle(style))
+                .append(Component.literal(tag.value).setStyle(style))
+                .append(Component.literal("]").setStyle(style));
     }
 
     private static int quipColor(TabListTag tag) {
@@ -703,8 +702,8 @@ public final class LegionsFeatures {
         return atomicsClientClass;
     }
 
-    private static int getTeamOutlineColor(PlayerEntity player) {
-        Team team = player.getScoreboardTeam();
+    private static int getTeamOutlineColor(Player player) {
+        PlayerTeam team = player.getTeam();
         if (team == null) {
             return 0xFFFFFFFF;
         }
@@ -714,8 +713,7 @@ public final class LegionsFeatures {
             return namedColor;
         }
 
-        Formatting color = team.getColor();
-        Integer rgb = color == null ? null : color.getColorValue();
+        Integer rgb = team.getColor().map(color -> color.rgb()).orElse(null);
         return rgb == null ? 0xFFFFFFFF : 0xFF000000 | rgb;
     }
 
@@ -744,7 +742,7 @@ public final class LegionsFeatures {
         return Math.max(min, Math.min(max, value));
     }
 
-    private static boolean shouldHighlightTeamAsSpectator(MinecraftClient client, PlayerEntity player) {
+    private static boolean shouldHighlightTeamAsSpectator(Minecraft client, Player player) {
         return client != null
                 && LegionsClient.CONFIG.spectatorGlowEnabled
                 && client.player != null
@@ -754,38 +752,38 @@ public final class LegionsFeatures {
                 && !isSpectatorTeam(player);
     }
 
-    public static boolean isTeammate(PlayerEntity local, PlayerEntity other) {
+    public static boolean isTeammate(Player local, Player other) {
         if (local == null || other == null) {
             return false;
         }
         if (local == other) {
             return true;
         }
-        Team localTeam = local.getScoreboardTeam();
-        Team otherTeam = other.getScoreboardTeam();
+        PlayerTeam localTeam = local.getTeam();
+        PlayerTeam otherTeam = other.getTeam();
         return localTeam != null && otherTeam != null && localTeam.getName().equals(otherTeam.getName());
     }
 
-    public static boolean isOpponent(PlayerEntity local, PlayerEntity other) {
+    public static boolean isOpponent(Player local, Player other) {
         if (local == null || other == null || local == other) {
             return false;
         }
         if (isSpectatorTeam(local) || isSpectatorTeam(other)) {
             return false;
         }
-        Team localTeam = local.getScoreboardTeam();
-        Team otherTeam = other.getScoreboardTeam();
+        PlayerTeam localTeam = local.getTeam();
+        PlayerTeam otherTeam = other.getTeam();
         if (localTeam != null && otherTeam != null) {
             return !localTeam.getName().equals(otherTeam.getName());
         }
         return true;
     }
 
-    public static boolean isSpectatorTeam(PlayerEntity player) {
+    public static boolean isSpectatorTeam(Player player) {
         if (player == null || player.isSpectator()) {
             return true;
         }
-        Team team = player.getScoreboardTeam();
+        PlayerTeam team = player.getTeam();
         return team != null && isSpectatorTeamName(team.getName());
     }
 
@@ -798,7 +796,7 @@ public final class LegionsFeatures {
         return normalizedPlayerNameCache.computeIfAbsent(name, value -> value.toLowerCase(Locale.ROOT));
     }
 
-    public static String realUsername(PlayerEntity player) {
+    public static String realUsername(Player player) {
         return player.getGameProfile().name();
     }
 

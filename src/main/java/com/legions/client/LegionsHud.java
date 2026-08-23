@@ -1,20 +1,18 @@
 package com.legions.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.world.GameMode;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.scores.PlayerTeam;
 
 public final class LegionsHud {
     private static final String TEAM_COUNT_TITLE = "Teams Left";
@@ -40,13 +38,13 @@ public final class LegionsHud {
     private static int lastTeamHudTeamColor = 0xFFE7F0FF;
     private static String cachedTeamHudTextName;
     private static String cachedTeamHudText;
-    private static Text cachedTeamHudTextComponent;
+    private static Component cachedTeamHudTextComponent;
 
     private LegionsHud() {
     }
 
-    public static void renderHud(DrawContext context) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static void renderHud(GuiGraphicsExtractor context) {
+        Minecraft client = Minecraft.getInstance();
         if (!LegionsClient.hudVisible(client)) {
             return;
         }
@@ -55,8 +53,8 @@ public final class LegionsHud {
         LegionsPingController.renderHud(context);
     }
 
-    public static void renderTeamHud(DrawContext context) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static void renderTeamHud(GuiGraphicsExtractor context) {
+        Minecraft client = Minecraft.getInstance();
         if (!LegionsClient.enabled(client) || !LegionsClient.CONFIG.teamHudEnabled || client.player == null) {
             return;
         }
@@ -64,52 +62,52 @@ public final class LegionsHud {
         renderTeamHudText(context, client, LegionsClient.CONFIG.teamHudX, LegionsClient.CONFIG.teamHudY);
     }
 
-    public static void renderTeamHudPreview(DrawContext context, MinecraftClient client, int x, int y) {
-        MinecraftClient renderClient = client == null ? MinecraftClient.getInstance() : client;
+    public static void renderTeamHudPreview(GuiGraphicsExtractor context, Minecraft client, int x, int y) {
+        Minecraft renderClient = client == null ? Minecraft.getInstance() : client;
         renderTeamHudText(context, renderClient, x, y);
     }
 
-    public static int teamHudPreviewWidth(MinecraftClient client) {
-        MinecraftClient renderClient = client == null ? MinecraftClient.getInstance() : client;
-        return scaledDimension(renderClient.textRenderer.getWidth(teamHudText(renderClient)));
+    public static int teamHudPreviewWidth(Minecraft client) {
+        Minecraft renderClient = client == null ? Minecraft.getInstance() : client;
+        return scaledDimension(renderClient.font.width(teamHudText(renderClient)));
     }
 
-    public static int teamHudPreviewHeight(MinecraftClient client) {
-        MinecraftClient renderClient = client == null ? MinecraftClient.getInstance() : client;
-        return scaledDimension(renderClient.textRenderer.fontHeight);
+    public static int teamHudPreviewHeight(Minecraft client) {
+        Minecraft renderClient = client == null ? Minecraft.getInstance() : client;
+        return scaledDimension(renderClient.font.lineHeight);
     }
 
-    private static void renderTeamHudText(DrawContext context, MinecraftClient client, int configuredX, int configuredY) {
-        TextRenderer renderer = client.textRenderer;
+    private static void renderTeamHudText(GuiGraphicsExtractor context, Minecraft client, int configuredX, int configuredY) {
+        Font renderer = client.font;
         TeamHudState state = teamHudState(client);
         String text = teamHudTextForName(state.name());
         float scale = LegionsClient.uiScaleFactor();
-        int width = scaledDimension(renderer.getWidth(text));
-        int height = scaledDimension(renderer.fontHeight);
-        int x = clamp(configuredX, 0, Math.max(0, context.getScaledWindowWidth() - width));
-        int y = clamp(configuredY, 0, Math.max(0, context.getScaledWindowHeight() - height));
+        int width = scaledDimension(renderer.width(text));
+        int height = scaledDimension(renderer.lineHeight);
+        int x = clamp(configuredX, 0, Math.max(0, context.guiWidth() - width));
+        int y = clamp(configuredY, 0, Math.max(0, context.guiHeight() - height));
 
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(x, y);
-        context.getMatrices().scale(scale, scale);
-        context.drawTextWithShadow(renderer, cachedTeamHudTextComponent, 0, 0, state.color());
-        context.getMatrices().popMatrix();
+        context.pose().pushMatrix();
+        context.pose().translate(x, y);
+        context.pose().scale(scale, scale);
+        context.text(renderer, cachedTeamHudTextComponent, 0, 0, state.color());
+        context.pose().popMatrix();
     }
 
-    public static String teamHudText(MinecraftClient client) {
+    public static String teamHudText(Minecraft client) {
         return teamHudTextForName(teamHudState(client).name());
     }
 
-    public static int teamHudColor(MinecraftClient client) {
+    public static int teamHudColor(Minecraft client) {
         return teamHudState(client).color();
     }
 
-    private static TeamHudState teamHudState(MinecraftClient client) {
+    private static TeamHudState teamHudState(Minecraft client) {
         if (client == null || client.player == null) {
             return teamHudStateScratch.set("?", 0xFFE7F0FF);
         }
 
-        UUID playerUuid = client.player.getUuid();
+        UUID playerUuid = client.player.getUUID();
         if (!playerUuid.equals(lastTeamHudPlayerUuid)) {
             lastTeamHudPlayerUuid = playerUuid;
             lastTeamHudSourceName = null;
@@ -117,7 +115,7 @@ public final class LegionsHud {
             lastTeamHudTeamColor = 0xFFE7F0FF;
         }
 
-        Team team = client.player.getScoreboardTeam();
+        PlayerTeam team = client.player.getTeam();
         if (team == null) {
             if (client.player.isSpectator() && lastTeamHudTeamName != null) {
                 return teamHudStateScratch.set(lastTeamHudTeamName, lastTeamHudTeamColor);
@@ -147,9 +145,8 @@ public final class LegionsHud {
         return teamHudStateScratch.set(readableName, color);
     }
 
-    private static int rawTeamHudColor(Team team) {
-        Formatting color = team.getColor();
-        Integer rgb = color == null ? null : color.getColorValue();
+    private static int rawTeamHudColor(PlayerTeam team) {
+        Integer rgb = team.getColor().map(color -> color.rgb()).orElse(null);
         if (rgb != null) {
             return 0xFF000000 | rgb;
         }
@@ -160,13 +157,13 @@ public final class LegionsHud {
         if (!name.equals(cachedTeamHudTextName)) {
             cachedTeamHudTextName = name;
             cachedTeamHudText = "Team: " + name;
-            cachedTeamHudTextComponent = Text.literal(cachedTeamHudText);
+            cachedTeamHudTextComponent = Component.literal(cachedTeamHudText);
         }
         return cachedTeamHudText;
     }
 
-    public static void renderTeamCountOverlay(DrawContext context) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static void renderTeamCountOverlay(GuiGraphicsExtractor context) {
+        Minecraft client = Minecraft.getInstance();
         if (!LegionsClient.enabled(client) || !LegionsClient.CONFIG.teamCountOverlayEnabled || client.player == null) {
             return;
         }
@@ -174,18 +171,18 @@ public final class LegionsHud {
         renderTeamCountOverlay(context, client, LegionsClient.CONFIG.teamCountOverlayX, LegionsClient.CONFIG.teamCountOverlayY, false);
     }
 
-    public static int teamCountOverlayPreviewWidth(MinecraftClient client) {
-        MinecraftClient renderClient = client == null ? MinecraftClient.getInstance() : client;
+    public static int teamCountOverlayPreviewWidth(Minecraft client) {
+        Minecraft renderClient = client == null ? Minecraft.getInstance() : client;
         return scaledDimension(teamCountOverlayWidth(renderClient, displayTeamCounts(client, true)));
     }
 
-    public static int teamCountOverlayPreviewHeight(MinecraftClient client) {
+    public static int teamCountOverlayPreviewHeight(Minecraft client) {
         return scaledDimension(teamCountOverlayHeight(displayTeamCounts(client, true)));
     }
 
-    public static int defaultTeamCountOverlayX(MinecraftClient client) {
-        MinecraftClient renderClient = client == null ? MinecraftClient.getInstance() : client;
-        int screenWidth = renderClient.getWindow().getScaledWidth();
+    public static int defaultTeamCountOverlayX(Minecraft client) {
+        Minecraft renderClient = client == null ? Minecraft.getInstance() : client;
+        int screenWidth = renderClient.getWindow().getGuiScaledWidth();
         return Math.max(0, screenWidth - teamCountOverlayPreviewWidth(renderClient) - TEAM_COUNT_MARGIN);
     }
 
@@ -193,12 +190,12 @@ public final class LegionsHud {
         return TEAM_COUNT_DEFAULT_Y;
     }
 
-    public static void renderTeamCountOverlayPreview(DrawContext context, MinecraftClient client, int x, int y) {
-        MinecraftClient renderClient = client == null ? MinecraftClient.getInstance() : client;
+    public static void renderTeamCountOverlayPreview(GuiGraphicsExtractor context, Minecraft client, int x, int y) {
+        Minecraft renderClient = client == null ? Minecraft.getInstance() : client;
         renderTeamCountOverlay(context, renderClient, x, y, true);
     }
 
-    private static void renderTeamCountOverlay(DrawContext context, MinecraftClient client, int configuredX, int configuredY, boolean preview) {
+    private static void renderTeamCountOverlay(GuiGraphicsExtractor context, Minecraft client, int configuredX, int configuredY, boolean preview) {
         List<TeamCount> counts = displayTeamCounts(client, preview);
         if (counts.isEmpty()) {
             return;
@@ -208,8 +205,8 @@ public final class LegionsHud {
         int baseHeight = teamCountOverlayHeight(counts);
         int width = scaledDimension(baseWidth);
         int height = scaledDimension(baseHeight);
-        int screenWidth = context.getScaledWindowWidth();
-        int screenHeight = context.getScaledWindowHeight();
+        int screenWidth = context.guiWidth();
+        int screenHeight = context.guiHeight();
         int x = configuredX;
         int y = configuredY;
         if (x < 0 || y < 0) {
@@ -220,38 +217,38 @@ public final class LegionsHud {
         y = clamp(y, 0, Math.max(0, screenHeight - height));
 
         float scale = LegionsClient.uiScaleFactor();
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(x, y);
-        context.getMatrices().scale(scale, scale);
+        context.pose().pushMatrix();
+        context.pose().translate(x, y);
+        context.pose().scale(scale, scale);
         renderTeamCountOverlayContents(context, client, counts, baseWidth, baseHeight);
-        context.getMatrices().popMatrix();
+        context.pose().popMatrix();
     }
 
-    private static void renderTeamCountOverlayContents(DrawContext context, MinecraftClient client,
+    private static void renderTeamCountOverlayContents(GuiGraphicsExtractor context, Minecraft client,
                                                        List<TeamCount> counts, int width, int height) {
         context.fill(0, 0, width, height, 0x66000000);
         context.fill(0, 0, width, TEAM_COUNT_HEADER_HEIGHT, 0x99000000);
         String title = teamCountTitle();
-        int titleX = width / 2 - client.textRenderer.getWidth(title) / 2;
-        context.drawTextWithShadow(client.textRenderer, title, titleX, 2, 0xFFFFFF55);
+        int titleX = width / 2 - client.font.width(title) / 2;
+        context.text(client.font, title, titleX, 2, 0xFFFFFF55);
 
         int rowY = TEAM_COUNT_HEADER_HEIGHT + 2;
         for (int i = 0; i < counts.size(); i++) {
             TeamCount count = counts.get(i);
             int rowTop = rowY + i * TEAM_COUNT_ROW_HEIGHT;
             context.fill(0, rowTop, width, rowTop + TEAM_COUNT_ROW_HEIGHT, (i & 1) == 0 ? 0x52000000 : 0x3F000000);
-            context.drawTextWithShadow(client.textRenderer, count.name(), TEAM_COUNT_PADDING_X, rowTop + 1, count.color());
+            context.text(client.font, count.name(), TEAM_COUNT_PADDING_X, rowTop + 1, count.color());
             String value = count.valueText();
-            int valueX = width - TEAM_COUNT_PADDING_X - client.textRenderer.getWidth(value);
-            context.drawTextWithShadow(client.textRenderer, value, valueX, rowTop + 1, 0xFFFFFFFF);
+            int valueX = width - TEAM_COUNT_PADDING_X - client.font.width(value);
+            context.text(client.font, value, valueX, rowTop + 1, 0xFFFFFFFF);
         }
     }
 
-    private static int teamCountOverlayWidth(MinecraftClient client, List<TeamCount> counts) {
-        int width = client.textRenderer.getWidth(teamCountTitle()) + TEAM_COUNT_PADDING_X * 2;
+    private static int teamCountOverlayWidth(Minecraft client, List<TeamCount> counts) {
+        int width = client.font.width(teamCountTitle()) + TEAM_COUNT_PADDING_X * 2;
         for (TeamCount count : counts) {
             String value = count.valueText();
-            int rowWidth = client.textRenderer.getWidth(count.name()) + client.textRenderer.getWidth(value) + TEAM_COUNT_PADDING_X * 3 + 8;
+            int rowWidth = client.font.width(count.name()) + client.font.width(value) + TEAM_COUNT_PADDING_X * 3 + 8;
             width = Math.max(width, rowWidth);
         }
         return Math.max(TEAM_COUNT_MIN_WIDTH, width);
@@ -261,7 +258,7 @@ public final class LegionsHud {
         return TEAM_COUNT_HEADER_HEIGHT + 4 + counts.size() * TEAM_COUNT_ROW_HEIGHT;
     }
 
-    private static List<TeamCount> displayTeamCounts(MinecraftClient client, boolean preview) {
+    private static List<TeamCount> displayTeamCounts(Minecraft client, boolean preview) {
         List<TeamCount> counts = collectTeamCounts(client);
         if (preview && counts.isEmpty()) {
             return SAMPLE_TEAM_COUNTS;
@@ -269,26 +266,26 @@ public final class LegionsHud {
         return counts;
     }
 
-    private static List<TeamCount> collectTeamCounts(MinecraftClient client) {
-        if (client == null || client.getNetworkHandler() == null) {
+    private static List<TeamCount> collectTeamCounts(Minecraft client) {
+        if (client == null || client.getConnection() == null) {
             clearTeamCountCache();
             return teamCountCache;
         }
 
-        ClientPlayNetworkHandler networkHandler = client.getNetworkHandler();
-        int size = networkHandler.getPlayerList().size();
-        long tick = client.world == null ? Long.MIN_VALUE : client.world.getTime();
+        ClientPacketListener networkHandler = client.getConnection();
+        int size = networkHandler.getOnlinePlayers().size();
+        long tick = client.level == null ? Long.MIN_VALUE : client.level.getGameTime();
         if (teamCountCacheHandler == networkHandler && teamCountCacheTick == tick && teamCountCacheSize == size) {
             return teamCountCache;
         }
 
         teamCountScratch.clear();
-        for (PlayerListEntry entry : networkHandler.getPlayerList()) {
-            if (entry == null || entry.getGameMode() == GameMode.SPECTATOR) {
+        for (PlayerInfo entry : networkHandler.getOnlinePlayers()) {
+            if (entry == null || entry.getGameMode() == GameType.SPECTATOR) {
                 continue;
             }
 
-            Team team = entry.getScoreboardTeam();
+            PlayerTeam team = entry.getTeam();
             if (team == null || team.getName() == null || team.getName().isBlank() || isSpectatorTeamName(team.getName())) {
                 continue;
             }
@@ -325,7 +322,7 @@ public final class LegionsHud {
         teamCountScratch.clear();
     }
 
-    private static String teamDisplayName(Team team) {
+    private static String teamDisplayName(PlayerTeam team) {
         String name = team.getDisplayName() == null ? "" : team.getDisplayName().getString();
         if (name.isBlank()) {
             name = team.getName();
@@ -341,13 +338,8 @@ public final class LegionsHud {
         return trimmed.length() <= 18 ? trimmed : trimmed.substring(0, 18);
     }
 
-    private static int teamTextColor(Team team) {
-        Formatting formatting = team.getColor();
-        if (formatting == null) {
-            return fallbackTeamColor(team.getName());
-        }
-
-        Integer rgb = formatting.getColorValue();
+    private static int teamTextColor(PlayerTeam team) {
+        Integer rgb = team.getColor().map(color -> color.rgb()).orElse(null);
         if (rgb == null) {
             return fallbackTeamColor(team.getName());
         }

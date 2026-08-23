@@ -10,10 +10,6 @@ import com.legions.client.gui.atomics.LegionsAtomicsIntSlider;
 import com.legions.client.gui.atomics.LegionsAtomicsSectionHeaderWidget;
 import com.legions.client.gui.atomics.LegionsAtomicsSubHeaderWidget;
 import com.legions.client.gui.atomics.LegionsAtomicsToggleWidget;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Unique;
@@ -29,6 +25,10 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 @Pseudo
 @Mixin(targets = "com.atomics.client.gui.AtomicsClientScreen")
@@ -49,7 +49,7 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     @Unique
     private boolean legions_client$sectionCollapsed;
 
-    protected AtomicsClientScreenModuleMixin(Text title) {
+    protected AtomicsClientScreenModuleMixin(Component title) {
         super(title);
     }
 
@@ -83,9 +83,9 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
         boolean collapsed = searchTab ? legions_client$searchQuery().isBlank() : legions_client$sectionCollapsed;
 
         if (legions_client$isWidgetVisible(y)) {
-            addDrawableChild(new LegionsAtomicsSectionHeaderWidget(this.textRenderer, leftX, y, leftWidth, LEGIONS_BUTTON_HEIGHT, "Legions", collapsed, () -> {
+            addRenderableWidget(new LegionsAtomicsSectionHeaderWidget(this.font, leftX, y, leftWidth, LEGIONS_BUTTON_HEIGHT, "Legions", collapsed, () -> {
                 legions_client$sectionCollapsed = !legions_client$sectionCollapsed;
-                clearAndInit();
+                rebuildWidgets();
             }));
         }
         y += LEGIONS_SECTION_HEIGHT;
@@ -186,7 +186,7 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
                     int.class, int.class, int.class, String.class, int.class, int.class, int.class,
                     int.class, int.class, intSetterType);
             Method addWideButton = legions_client$getMethod(screenClass, "addWideButton",
-                    int.class, int.class, int.class, String.class, ButtonWidget.PressAction.class);
+                    int.class, int.class, int.class, String.class, Button.OnPress.class);
 
             int rowY = (Integer) addFeatureSection.invoke(this, y, LEGIONS_FEATURE_KEY, "Legions");
             if ((Boolean) isFeatureCollapsed.invoke(this, LEGIONS_FEATURE_KEY)) {
@@ -200,7 +200,7 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
                     "UI Scale %", LegionsClient.CONFIG.uiScale, 50, 200, 5, LEGIONS_DEFAULT_CONFIG.uiScale,
                     () -> LegionsClient.CONFIG.uiScale, value -> LegionsClient.CONFIG.uiScale = value);
             rowY = legions_client$addNativeWideButton(addWideButton, leftX, rowY, controlWidth, "Server IPs",
-                    button -> this.client.setScreen(new LegionsServerListScreen(this)));
+                    button -> this.minecraft.gui.setScreen(new LegionsServerListScreen(this)));
 
             rowY = legions_client$addSubHeader(leftX, rowY, controlWidth, "Player Info");
             rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
@@ -233,7 +233,7 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
                     "Team Ping", LEGIONS_DEFAULT_CONFIG.teamPingEnabled, () -> LegionsClient.CONFIG.teamPingEnabled, value -> LegionsClient.CONFIG.teamPingEnabled = value);
             if (LegionsClient.CONFIG.teamPingEnabled) {
                 rowY = legions_client$addNativeWideButton(addWideButton, leftX, rowY, controlWidth, "Customize Team Pings",
-                        button -> this.client.setScreen(new LegionsPingConfigScreen(this)));
+                        button -> this.minecraft.gui.setScreen(new LegionsPingConfigScreen(this)));
                 rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
                         "Block Ping Distance", LEGIONS_DEFAULT_CONFIG.blockPingDistanceLabelEnabled, () -> LegionsClient.CONFIG.blockPingDistanceLabelEnabled, value -> LegionsClient.CONFIG.blockPingDistanceLabelEnabled = value);
                 rowY = legions_client$addNativeIntSlider(addIntSlider, intSetterType, leftX, rowY, controlWidth,
@@ -287,13 +287,13 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
                 rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
                         "Team Rating Totals", LEGIONS_DEFAULT_CONFIG.teamRatingTotalsEnabled, () -> LegionsClient.CONFIG.teamRatingTotalsEnabled, value -> LegionsClient.CONFIG.teamRatingTotalsEnabled = value);
                 rowY = legions_client$addNativeWideButton(addWideButton, leftX, rowY, controlWidth, "Move Team Count Overlay",
-                        button -> this.client.setScreen(new LegionsTeamCountOverlayLayoutScreen(this)));
+                        button -> this.minecraft.gui.setScreen(new LegionsTeamCountOverlayLayoutScreen(this)));
             }
             rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
                     "Team HUD", LEGIONS_DEFAULT_CONFIG.teamHudEnabled, () -> LegionsClient.CONFIG.teamHudEnabled, value -> LegionsClient.CONFIG.teamHudEnabled = value);
             if (LegionsClient.CONFIG.teamHudEnabled) {
                 rowY = legions_client$addNativeWideButton(addWideButton, leftX, rowY, controlWidth, "Move Team HUD",
-                        button -> this.client.setScreen(new LegionsTeamHudLayoutScreen(this)));
+                        button -> this.minecraft.gui.setScreen(new LegionsTeamHudLayoutScreen(this)));
             }
 
             rowY = legions_client$addSubHeader(leftX, rowY, controlWidth, "Player Visibility");
@@ -347,7 +347,7 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     }
 
     @Unique
-    private int legions_client$addNativeWideButton(Method addWideButton, int x, int y, int width, String label, ButtonWidget.PressAction action) throws ReflectiveOperationException {
+    private int legions_client$addNativeWideButton(Method addWideButton, int x, int y, int width, String label, Button.OnPress action) throws ReflectiveOperationException {
         addWideButton.invoke(this, x, y, width, label, action);
         return y + LEGIONS_ROW_HEIGHT;
     }
@@ -359,7 +359,7 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
                 if (getter.getAsBoolean() != value) {
                     setter.accept(value);
                     LegionsClient.saveConfig();
-                    clearAndInit();
+                    rebuildWidgets();
                 }
                 return null;
             }
@@ -395,16 +395,16 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     @Unique
     private int legions_client$addToggle(int x, int y, int width, String label, BooleanSupplier getter, Consumer<Boolean> setter, boolean defaultValue) {
         if (legions_client$isWidgetVisible(y)) {
-            addDrawableChild(new LegionsAtomicsToggleWidget(this.textRenderer, x, y, width, LEGIONS_BUTTON_HEIGHT, label, getter.getAsBoolean(), () -> {
+            addRenderableWidget(new LegionsAtomicsToggleWidget(this.font, x, y, width, LEGIONS_BUTTON_HEIGHT, label, getter.getAsBoolean(), () -> {
                 boolean value = !getter.getAsBoolean();
                 setter.accept(value);
                 LegionsClient.saveConfig();
-                clearAndInit();
+                rebuildWidgets();
             }));
             legions_client$addResetButton(x, y, width, getter.getAsBoolean() != defaultValue, () -> {
                 setter.accept(defaultValue);
                 LegionsClient.saveConfig();
-                clearAndInit();
+                rebuildWidgets();
             });
         }
         return y + LEGIONS_ROW_HEIGHT;
@@ -413,7 +413,7 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     @Unique
     private int legions_client$addSubHeader(int x, int y, int width, String label) {
         if (legions_client$isWidgetVisible(y)) {
-            addDrawableChild(new LegionsAtomicsSubHeaderWidget(this.textRenderer, x, y, width, LEGIONS_BUTTON_HEIGHT, label));
+            addRenderableWidget(new LegionsAtomicsSubHeaderWidget(this.font, x, y, width, LEGIONS_BUTTON_HEIGHT, label));
         }
         return y + LEGIONS_SECTION_HEIGHT;
     }
@@ -421,12 +421,12 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     @Unique
     private int legions_client$addIntSlider(int x, int y, int width, String label, int min, int max, int initial, IntConsumer setter, int defaultValue) {
         if (legions_client$isWidgetVisible(y)) {
-            addDrawableChild(new LegionsAtomicsIntSlider(x, y, width, LEGIONS_BUTTON_HEIGHT, label, min, max, initial, setter));
+            addRenderableWidget(new LegionsAtomicsIntSlider(x, y, width, LEGIONS_BUTTON_HEIGHT, label, min, max, initial, setter));
             legions_client$addResetButton(x, y, width, initial != defaultValue, () -> {
                 setter.accept(defaultValue);
                 LegionsClient.CONFIG.normalize();
                 LegionsClient.saveConfig();
-                clearAndInit();
+                rebuildWidgets();
             });
         }
         return y + LEGIONS_ROW_HEIGHT;
@@ -436,17 +436,17 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     private int legions_client$addTextField(int x, int y, int width, String label, String value, String placeholder,
                                            Consumer<String> setter, String defaultValue) {
         if (legions_client$isWidgetVisible(y)) {
-            TextFieldWidget field = new TextFieldWidget(this.textRenderer, x, y, width, LEGIONS_BUTTON_HEIGHT, Text.literal(label));
-            field.setText(value);
-            field.setPlaceholder(Text.literal(placeholder));
-            field.setChangedListener(nextValue -> {
+            EditBox field = new EditBox(this.font, x, y, width, LEGIONS_BUTTON_HEIGHT, Component.literal(label));
+            field.setValue(value);
+            field.setHint(Component.literal(placeholder));
+            field.setResponder(nextValue -> {
                 setter.accept(nextValue);
                 LegionsClient.saveConfig();
             });
-            addDrawableChild(field);
+            addRenderableWidget(field);
             legions_client$addResetButton(x, y, width, !value.equals(defaultValue), () -> {
                 setter.accept(defaultValue);
-                clearAndInit();
+                rebuildWidgets();
             });
         }
         return y + LEGIONS_ROW_HEIGHT;
@@ -455,17 +455,17 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     @Unique
     private void legions_client$addResetButton(int x, int y, int width, boolean visible, Runnable action) {
         if (visible) {
-            addDrawableChild(ButtonWidget.builder(Text.literal("R"), button -> action.run())
-                    .dimensions(x + width + 6, y, LEGIONS_RESET_WIDTH, LEGIONS_BUTTON_HEIGHT).build());
+            addRenderableWidget(Button.builder(Component.literal("R"), button -> action.run())
+                    .bounds(x + width + 6, y, LEGIONS_RESET_WIDTH, LEGIONS_BUTTON_HEIGHT).build());
         }
     }
 
     @Unique
     private int legions_client$addMoveTeamHudButton(int x, int y, int width) {
         if (legions_client$isWidgetVisible(y)) {
-            addDrawableChild(ButtonWidget.builder(Text.literal("Move Team HUD"),
-                    button -> this.client.setScreen(new LegionsTeamHudLayoutScreen(this)))
-                    .dimensions(x, y, width, LEGIONS_BUTTON_HEIGHT).build());
+            addRenderableWidget(Button.builder(Component.literal("Move Team HUD"),
+                    button -> this.minecraft.gui.setScreen(new LegionsTeamHudLayoutScreen(this)))
+                    .bounds(x, y, width, LEGIONS_BUTTON_HEIGHT).build());
         }
         return y + LEGIONS_ROW_HEIGHT;
     }
@@ -473,9 +473,9 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     @Unique
     private int legions_client$addMoveTeamCountButton(int x, int y, int width) {
         if (legions_client$isWidgetVisible(y)) {
-            addDrawableChild(ButtonWidget.builder(Text.literal("Move Team Count Overlay"),
-                    button -> this.client.setScreen(new LegionsTeamCountOverlayLayoutScreen(this)))
-                    .dimensions(x, y, width, LEGIONS_BUTTON_HEIGHT).build());
+            addRenderableWidget(Button.builder(Component.literal("Move Team Count Overlay"),
+                    button -> this.minecraft.gui.setScreen(new LegionsTeamCountOverlayLayoutScreen(this)))
+                    .bounds(x, y, width, LEGIONS_BUTTON_HEIGHT).build());
         }
         return y + LEGIONS_ROW_HEIGHT;
     }
@@ -483,9 +483,9 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     @Unique
     private int legions_client$addCustomizeTeamPingsButton(int x, int y, int width) {
         if (legions_client$isWidgetVisible(y)) {
-            addDrawableChild(ButtonWidget.builder(Text.literal("Customize Team Pings"),
-                    button -> this.client.setScreen(new LegionsPingConfigScreen(this)))
-                    .dimensions(x, y, width, LEGIONS_BUTTON_HEIGHT).build());
+            addRenderableWidget(Button.builder(Component.literal("Customize Team Pings"),
+                    button -> this.minecraft.gui.setScreen(new LegionsPingConfigScreen(this)))
+                    .bounds(x, y, width, LEGIONS_BUTTON_HEIGHT).build());
         }
         return y + LEGIONS_ROW_HEIGHT;
     }
@@ -493,9 +493,9 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
     @Unique
     private int legions_client$addServerIpsButton(int x, int y, int width) {
         if (legions_client$isWidgetVisible(y)) {
-            addDrawableChild(ButtonWidget.builder(Text.literal("Server IPs"),
-                    button -> this.client.setScreen(new LegionsServerListScreen(this)))
-                    .dimensions(x, y, width, LEGIONS_BUTTON_HEIGHT).build());
+            addRenderableWidget(Button.builder(Component.literal("Server IPs"),
+                    button -> this.minecraft.gui.setScreen(new LegionsServerListScreen(this)))
+                    .bounds(x, y, width, LEGIONS_BUTTON_HEIGHT).build());
         }
         return y + LEGIONS_ROW_HEIGHT;
     }

@@ -1,7 +1,7 @@
 {
   "required": false,
   "package": "com.legions.client.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "client": [
     "ClientPlayerInteractionManagerMixin",
     "ClientPlayNetworkHandlerMixin",

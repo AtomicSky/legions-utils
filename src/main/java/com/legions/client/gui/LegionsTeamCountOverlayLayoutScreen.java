@@ -2,12 +2,12 @@ package com.legions.client.gui;
 
 import com.legions.client.LegionsClient;
 import com.legions.client.LegionsHud;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 public class LegionsTeamCountOverlayLayoutScreen extends Screen {
@@ -21,7 +21,7 @@ public class LegionsTeamCountOverlayLayoutScreen extends Screen {
     private int dragOffsetY;
 
     public LegionsTeamCountOverlayLayoutScreen(Screen parent) {
-        super(Text.literal("Move Team Count Overlay"));
+        super(Component.literal("Move Team Count Overlay"));
         this.parent = parent;
         this.overlayX = LegionsClient.CONFIG.teamCountOverlayX;
         this.overlayY = LegionsClient.CONFIG.teamCountOverlayY;
@@ -41,23 +41,23 @@ public class LegionsTeamCountOverlayLayoutScreen extends Screen {
         int sliderY = this.height - 56;
         int y = this.height - 28;
         int x = this.width / 2 - buttonWidth - gap / 2;
-        addDrawableChild(new LegionsUiScaleSlider(sliderX, sliderY, SCALE_SLIDER_WIDTH, BUTTON_HEIGHT, this::clampAndApply));
-        addDrawableChild(ButtonWidget.builder(Text.literal("Reset"), button -> resetOverlay())
-                .dimensions(x, y, buttonWidth, BUTTON_HEIGHT).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> close())
-                .dimensions(x + buttonWidth + gap, y, buttonWidth, BUTTON_HEIGHT).build());
+        addRenderableWidget(new LegionsUiScaleSlider(sliderX, sliderY, SCALE_SLIDER_WIDTH, BUTTON_HEIGHT, this::clampAndApply));
+        addRenderableWidget(Button.builder(Component.literal("Reset"), button -> resetOverlay())
+                .bounds(x, y, buttonWidth, BUTTON_HEIGHT).build());
+        addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
+                .bounds(x + buttonWidth + gap, y, buttonWidth, BUTTON_HEIGHT).build());
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, this.width, this.height, 0xCC080B0F);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 18, 0xFFE7F0FF);
+        context.centeredText(this.font, this.title, this.width / 2, 18, 0xFFE7F0FF);
         renderOverlayPreview(context);
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubleClick) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubleClick) {
         if (super.mouseClicked(click, doubleClick)) {
             return true;
         }
@@ -71,7 +71,7 @@ public class LegionsTeamCountOverlayLayoutScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+    public boolean mouseDragged(MouseButtonEvent click, double offsetX, double offsetY) {
         if (!dragging) {
             return super.mouseDragged(click, offsetX, offsetY);
         }
@@ -83,7 +83,7 @@ public class LegionsTeamCountOverlayLayoutScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (dragging) {
             dragging = false;
             apply();
@@ -94,20 +94,20 @@ public class LegionsTeamCountOverlayLayoutScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         apply();
         LegionsClient.saveConfig();
-        MinecraftClient.getInstance().setScreen(parent);
+        Minecraft.getInstance().gui.setScreen(parent);
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 
-    private void renderOverlayPreview(DrawContext context) {
+    private void renderOverlayPreview(GuiGraphicsExtractor context) {
         clampOverlay();
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         LegionsHud.renderTeamCountOverlayPreview(context, client, overlayX, overlayY);
 
         int left = overlayX - 4;
@@ -127,15 +127,15 @@ public class LegionsTeamCountOverlayLayoutScreen extends Screen {
     }
 
     private int overlayWidth() {
-        return LegionsHud.teamCountOverlayPreviewWidth(MinecraftClient.getInstance());
+        return LegionsHud.teamCountOverlayPreviewWidth(Minecraft.getInstance());
     }
 
     private int overlayHeight() {
-        return LegionsHud.teamCountOverlayPreviewHeight(MinecraftClient.getInstance());
+        return LegionsHud.teamCountOverlayPreviewHeight(Minecraft.getInstance());
     }
 
     private void resetOverlay() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         overlayX = LegionsHud.defaultTeamCountOverlayX(client);
         overlayY = LegionsHud.defaultTeamCountOverlayY();
         clampOverlay();

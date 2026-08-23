@@ -1,11 +1,11 @@
 package com.legions.client.mixin;
 
 import com.legions.client.access.LegionsPlayerOverlayRenderStateAccess;
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
-@Mixin(PlayerEntityRenderState.class)
+@Mixin(AvatarRenderState.class)
 public class PlayerEntityRenderStateMixin implements LegionsPlayerOverlayRenderStateAccess {
     @Unique
     private int legions_client$foeOverlayColor = -1;

@@ -1,6 +1,6 @@
 package com.legions.client;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 public final class LegionsAdaptivePerformance {
     private static final int SAMPLE_INTERVAL_TICKS = 40;
@@ -16,13 +16,13 @@ public final class LegionsAdaptivePerformance {
     private LegionsAdaptivePerformance() {
     }
 
-    public static void tick(MinecraftClient client) {
+    public static void tick(Minecraft client) {
         if (!available(client)) {
             reset();
             return;
         }
 
-        int fps = client.getCurrentFps();
+        int fps = client.getFps();
         if (fps <= 0) {
             return;
         }
@@ -35,7 +35,7 @@ public final class LegionsAdaptivePerformance {
         }
         sampleTicks = 0;
 
-        int targetFps = Math.max(30, Math.min(60, client.options.getMaxFps().getValue()));
+        int targetFps = Math.max(30, Math.min(60, client.options.framerateLimit().get()));
         int desiredLevel = desiredReductionLevel(smoothedFps / targetFps);
         long now = System.currentTimeMillis();
         if (desiredLevel > reductionLevel) {
@@ -80,12 +80,12 @@ public final class LegionsAdaptivePerformance {
         lastLevelChangeAt = 0L;
     }
 
-    private static boolean available(MinecraftClient client) {
+    private static boolean available(Minecraft client) {
         return client != null
-                && client.world != null
+                && client.level != null
                 && client.player != null
                 && client.options != null
-                && client.isWindowFocused()
+                && client.isWindowActive()
                 && !client.isPaused()
                 && LegionsClient.enabled(client)
                 && LegionsClient.CONFIG.adaptivePerformanceEnabled;

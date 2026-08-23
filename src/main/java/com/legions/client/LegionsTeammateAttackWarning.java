@@ -1,12 +1,12 @@
 package com.legions.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.scores.PlayerTeam;
 
 public final class LegionsTeammateAttackWarning {
     private static final float WARNING_VOLUME = 0.8F;
@@ -15,11 +15,11 @@ public final class LegionsTeammateAttackWarning {
     private LegionsTeammateAttackWarning() {
     }
 
-    public static void warnIfTeammateAttack(MinecraftClient client, PlayerEntity attacker, Entity target) {
+    public static void warnIfTeammateAttack(Minecraft client, Player attacker, Entity target) {
         if (!LegionsClient.enabled(client)
                 || client.player == null
                 || attacker != client.player
-                || !(target instanceof PlayerEntity teammate)
+                || !(target instanceof Player teammate)
                 || teammate == attacker
                 || LegionsFeatures.isSpectatorTeam(attacker)
                 || LegionsFeatures.isSpectatorTeam(teammate)
@@ -29,16 +29,16 @@ public final class LegionsTeammateAttackWarning {
             return;
         }
 
-        Text message = Text.empty()
-                .append(Text.literal("Don't hit ").formatted(Formatting.RED, Formatting.BOLD))
-                .append(teammate.getName().copy().formatted(Formatting.YELLOW, Formatting.BOLD))
-                .append(Text.literal(" - they're your teammate!").formatted(Formatting.RED));
-        client.player.sendMessage(message, true);
-        client.player.playSound(SoundEvents.ENTITY_VILLAGER_NO, WARNING_VOLUME, WARNING_PITCH);
+        Component message = Component.empty()
+                .append(Component.literal("Don't hit ").withStyle(ChatFormatting.RED, ChatFormatting.BOLD))
+                .append(teammate.getName().copy().withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD))
+                .append(Component.literal(" - they're your teammate!").withStyle(ChatFormatting.RED));
+        client.player.sendOverlayMessage(message);
+        client.player.playSound(SoundEvents.VILLAGER_NO, WARNING_VOLUME, WARNING_PITCH);
     }
 
-    private static boolean isFreeForAllTeam(PlayerEntity player) {
-        Team team = player.getScoreboardTeam();
+    private static boolean isFreeForAllTeam(Player player) {
+        PlayerTeam team = player.getTeam();
         return team != null
                 && (isFreeForAllLabel(team.getName())
                 || isFreeForAllLabel(team.getDisplayName().getString()));

@@ -2,12 +2,11 @@ package com.legions.client.gui.atomics;
 
 import com.legions.client.LegionsClient;
 import com.legions.client.config.LegionsConfig;
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.text.Text;
-
 import java.util.function.IntConsumer;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.network.chat.Component;
 
-public final class LegionsAtomicsIntSlider extends SliderWidget {
+public final class LegionsAtomicsIntSlider extends AbstractSliderButton {
     private final String label;
     private final int min;
     private final int max;
@@ -15,7 +14,7 @@ public final class LegionsAtomicsIntSlider extends SliderWidget {
     private boolean saveOnChange;
 
     public LegionsAtomicsIntSlider(int x, int y, int width, int height, String label, int min, int max, int initial, IntConsumer setter) {
-        super(x, y, width, height, Text.empty(), 0.0);
+        super(x, y, width, height, Component.empty(), 0.0);
         this.label = label;
         this.min = min;
         this.max = max;
@@ -26,7 +25,7 @@ public final class LegionsAtomicsIntSlider extends SliderWidget {
 
     @Override
     protected void updateMessage() {
-        setMessage(Text.literal(label + "        " + getActualValue()));
+        setMessage(Component.literal(label + "        " + getActualValue()));
     }
 
     @Override

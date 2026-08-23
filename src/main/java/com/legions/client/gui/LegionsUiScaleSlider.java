@@ -1,24 +1,24 @@
 package com.legions.client.gui;
 
 import com.legions.client.LegionsClient;
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.network.chat.Component;
 
-final class LegionsUiScaleSlider extends SliderWidget {
+final class LegionsUiScaleSlider extends AbstractSliderButton {
     private static final int MIN_SCALE = 50;
     private static final int MAX_SCALE = 200;
 
     private final Runnable onChanged;
 
     LegionsUiScaleSlider(int x, int y, int width, int height, Runnable onChanged) {
-        super(x, y, width, height, Text.empty(), 0.0);
+        super(x, y, width, height, Component.empty(), 0.0);
         this.onChanged = onChanged;
         setActualValue(LegionsClient.CONFIG == null ? 100 : LegionsClient.CONFIG.uiScale);
     }
 
     @Override
     protected void updateMessage() {
-        setMessage(Text.literal("UI Scale %        " + getActualValue()));
+        setMessage(Component.literal("UI Scale %        " + getActualValue()));
     }
 
     @Override

@@ -2,12 +2,12 @@ package com.legions.client.gui;
 
 import com.legions.client.LegionsClient;
 import com.legions.client.LegionsHud;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 public class LegionsTeamHudLayoutScreen extends Screen {
@@ -17,7 +17,7 @@ public class LegionsTeamHudLayoutScreen extends Screen {
     private boolean dragging;
 
     public LegionsTeamHudLayoutScreen(Screen parent) {
-        super(Text.literal("Move Team HUD"));
+        super(Component.literal("Move Team HUD"));
         this.parent = parent;
     }
 
@@ -29,26 +29,26 @@ public class LegionsTeamHudLayoutScreen extends Screen {
         int sliderY = this.height - 56;
         int y = this.height - 28;
         int x = this.width / 2 - buttonWidth - gap / 2;
-        addDrawableChild(new LegionsUiScaleSlider(sliderX, sliderY, SCALE_SLIDER_WIDTH, BUTTON_HEIGHT, this::clampTeamText));
-        addDrawableChild(ButtonWidget.builder(Text.literal("Reset"), button -> {
+        addRenderableWidget(new LegionsUiScaleSlider(sliderX, sliderY, SCALE_SLIDER_WIDTH, BUTTON_HEIGHT, this::clampTeamText));
+        addRenderableWidget(Button.builder(Component.literal("Reset"), button -> {
             LegionsClient.CONFIG.teamHudX = 8;
             LegionsClient.CONFIG.teamHudY = 8;
             LegionsClient.saveConfig();
-        }).dimensions(x, y, buttonWidth, BUTTON_HEIGHT).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> close())
-                .dimensions(x + buttonWidth + gap, y, buttonWidth, BUTTON_HEIGHT).build());
+        }).bounds(x, y, buttonWidth, BUTTON_HEIGHT).build());
+        addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
+                .bounds(x + buttonWidth + gap, y, buttonWidth, BUTTON_HEIGHT).build());
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, this.width, this.height, 0xCC080B0F);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 18, 0xFFE7F0FF);
+        context.centeredText(this.font, this.title, this.width / 2, 18, 0xFFE7F0FF);
         drawTeamText(context);
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubleClick) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubleClick) {
         if (super.mouseClicked(click, doubleClick)) {
             return true;
         }
@@ -60,7 +60,7 @@ public class LegionsTeamHudLayoutScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+    public boolean mouseDragged(MouseButtonEvent click, double offsetX, double offsetY) {
         if (!dragging) {
             return super.mouseDragged(click, offsetX, offsetY);
         }
@@ -71,7 +71,7 @@ public class LegionsTeamHudLayoutScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (dragging) {
             dragging = false;
             LegionsClient.saveConfig();
@@ -81,25 +81,25 @@ public class LegionsTeamHudLayoutScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         clampTeamText();
         LegionsClient.saveConfig();
-        MinecraftClient.getInstance().setScreen(parent);
+        Minecraft.getInstance().gui.setScreen(parent);
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 
-    private void drawTeamText(DrawContext context) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private void drawTeamText(GuiGraphicsExtractor context) {
+        Minecraft client = Minecraft.getInstance();
         clampTeamText();
         LegionsHud.renderTeamHudPreview(context, client, LegionsClient.CONFIG.teamHudX, LegionsClient.CONFIG.teamHudY);
     }
 
     private boolean isOverTeamText(double mouseX, double mouseY) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         int x = LegionsClient.CONFIG.teamHudX;
         int y = LegionsClient.CONFIG.teamHudY;
         return mouseX >= x && mouseX <= x + LegionsHud.teamHudPreviewWidth(client)
@@ -107,7 +107,7 @@ public class LegionsTeamHudLayoutScreen extends Screen {
     }
 
     private void clampTeamText() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         LegionsClient.CONFIG.teamHudX = clamp(LegionsClient.CONFIG.teamHudX, 0, Math.max(0, this.width - LegionsHud.teamHudPreviewWidth(client)));
         LegionsClient.CONFIG.teamHudY = clamp(LegionsClient.CONFIG.teamHudY, 0, Math.max(0, this.height - LegionsHud.teamHudPreviewHeight(client)));
     }

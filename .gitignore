@@ -1,6 +1,5 @@
 .gradle/
-build/
-build-*/
+build*/
 run/
 .idea/
 bin/

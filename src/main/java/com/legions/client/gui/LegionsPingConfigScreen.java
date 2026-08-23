@@ -3,20 +3,20 @@ package com.legions.client.gui;
 import com.legions.client.LegionsClient;
 import com.legions.client.config.LegionsConfig;
 import com.legions.client.config.LegionsConfig.PingRow;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.text.Text;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 
 public class LegionsPingConfigScreen extends Screen {
     private static final int BUTTON_HEIGHT = 20;
@@ -51,7 +51,7 @@ public class LegionsPingConfigScreen extends Screen {
     private int capturingRow = -1;
 
     public LegionsPingConfigScreen(Screen parent) {
-        super(Text.literal("Team Ping Rows"));
+        super(Component.literal("Team Ping Rows"));
         this.parent = parent;
     }
 
@@ -82,14 +82,14 @@ public class LegionsPingConfigScreen extends Screen {
         int clampedScroll = clamp(scrollOffset, 0, maxScroll);
         if (scrollOffset != clampedScroll) {
             scrollOffset = clampedScroll;
-            clearAndInit();
+            rebuildWidgets();
             return;
         }
         panelBottom = visibleBottom();
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, this.width, this.height, 0x99000000);
         int panelWidth = panelWidth();
         int x = (this.width - panelWidth) / 2;
@@ -100,19 +100,19 @@ public class LegionsPingConfigScreen extends Screen {
             context.fill(x, bottom - 1, x + panelWidth, bottom, 0xFF263241);
             renderScrollbar(context, x, panelWidth, bottom);
         }
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 12, 0xFFE7F0FF);
+        context.centeredText(this.font, this.title, this.width / 2, 12, 0xFFE7F0FF);
         for (Label label : labels) {
-            context.drawTextWithShadow(textRenderer, Text.literal(label.text()), label.x(), label.y(), label.color());
+            context.text(font, Component.literal(label.text()), label.x(), label.y(), label.color());
         }
         if (capturingRow >= 0) {
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal("Press a key or click a mouse button"),
+            context.centeredText(font, Component.literal("Press a key or click a mouse button"),
                     this.width / 2, visibleBottom() - 12, 0xFF55E6FF);
         }
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
     @Override
-    public boolean keyPressed(KeyInput keyInput) {
+    public boolean keyPressed(KeyEvent keyInput) {
         if (capturingRow >= 0) {
             if (keyInput.key() != GLFW.GLFW_KEY_ESCAPE && isValidRow(capturingRow)) {
                 PingRow row = LegionsClient.CONFIG.pingRows.get(capturingRow);
@@ -121,14 +121,14 @@ public class LegionsPingConfigScreen extends Screen {
                 LegionsClient.CONFIG.normalize();
             }
             capturingRow = -1;
-            clearAndInit();
+            rebuildWidgets();
             return true;
         }
         return super.keyPressed(keyInput);
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubleClick) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubleClick) {
         if (capturingRow >= 0) {
             if (isValidRow(capturingRow)) {
                 PingRow row = LegionsClient.CONFIG.pingRows.get(capturingRow);
@@ -137,7 +137,7 @@ public class LegionsPingConfigScreen extends Screen {
                 LegionsClient.CONFIG.normalize();
             }
             capturingRow = -1;
-            clearAndInit();
+            rebuildWidgets();
             return true;
         }
         return super.mouseClicked(click, doubleClick);
@@ -153,7 +153,7 @@ public class LegionsPingConfigScreen extends Screen {
             }
             scrollOffset = clamp(scrollOffset - delta, 0, maxScroll);
             if (scrollOffset != oldOffset) {
-                clearAndInit();
+                rebuildWidgets();
                 return true;
             }
         }
@@ -161,13 +161,13 @@ public class LegionsPingConfigScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         LegionsClient.saveConfig();
-        MinecraftClient.getInstance().setScreen(parent);
+        Minecraft.getInstance().gui.setScreen(parent);
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 
@@ -175,13 +175,13 @@ public class LegionsPingConfigScreen extends Screen {
         int gap = 8;
         int buttonWidth = (width - gap) / 2;
         int y = 34;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Add Row"), button -> {
+        addRenderableWidget(Button.builder(Component.literal("Add Row"), button -> {
             LegionsClient.CONFIG.pingRows.add(new PingRow().normalize());
             LegionsClient.CONFIG.normalize();
-            clearAndInit();
-        }).dimensions(x, y, buttonWidth, BUTTON_HEIGHT).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> close())
-                .dimensions(x + buttonWidth + gap, y, buttonWidth, BUTTON_HEIGHT).build());
+            rebuildWidgets();
+        }).bounds(x, y, buttonWidth, BUTTON_HEIGHT).build());
+        addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose())
+                .bounds(x + buttonWidth + gap, y, buttonWidth, BUTTON_HEIGHT).build());
     }
 
     private void addPingRow(int index, PingRow row, int x, int y, int width) {
@@ -191,15 +191,15 @@ public class LegionsPingConfigScreen extends Screen {
 
         addLabel(x + 4, y + 4, "Ping " + (index + 1), 0xFF55E6FF);
         int smallWidth = 86;
-        addButtonIfVisible(x + width - smallWidth * 2 - 8, y, smallWidth, Text.literal("Copy"), button -> {
+        addButtonIfVisible(x + width - smallWidth * 2 - 8, y, smallWidth, Component.literal("Copy"), button -> {
             LegionsClient.CONFIG.pingRows.add(index + 1, row.copy());
-            clearAndInit();
+            rebuildWidgets();
         });
-        ButtonWidget delete = buttonIfVisible(x + width - smallWidth, y, smallWidth, Text.literal("Delete"), button -> {
+        Button delete = buttonIfVisible(x + width - smallWidth, y, smallWidth, Component.literal("Delete"), button -> {
             if (LegionsClient.CONFIG.pingRows.size() > 1) {
                 LegionsClient.CONFIG.pingRows.remove(index);
                 capturingRow = -1;
-                clearAndInit();
+                rebuildWidgets();
             }
         });
         if (delete != null) {
@@ -209,33 +209,33 @@ public class LegionsPingConfigScreen extends Screen {
         int lineY = y + 28;
         int gap = 12;
         int half = (width - gap) / 2;
-        addButtonIfVisible(x, lineY, half, Text.literal(capturingRow == index ? "Key: listening..." : "Key: " + keyLabel(row)), button -> {
+        addButtonIfVisible(x, lineY, half, Component.literal(capturingRow == index ? "Key: listening..." : "Key: " + keyLabel(row)), button -> {
             capturingRow = index;
-            button.setMessage(Text.literal("Key: listening..."));
+            button.setMessage(Component.literal("Key: listening..."));
         });
-        addButtonIfVisible(x + half + gap, lineY, half, Text.literal("Presses: " + row.presses), button -> {
+        addButtonIfVisible(x + half + gap, lineY, half, Component.literal("Presses: " + row.presses), button -> {
             row.presses = row.presses >= 5 ? 1 : row.presses + 1;
             LegionsClient.CONFIG.normalize();
-            clearAndInit();
+            rebuildWidgets();
         });
 
         lineY += 28;
-        addButtonIfVisible(x, lineY, half, Text.literal("Source: " + SOURCE_LABELS[row.targetSource]), button -> {
+        addButtonIfVisible(x, lineY, half, Component.literal("Source: " + SOURCE_LABELS[row.targetSource]), button -> {
             row.targetSource = Math.floorMod(row.targetSource + 1, SOURCE_LABELS.length);
             LegionsClient.CONFIG.normalize();
-            clearAndInit();
+            rebuildWidgets();
         });
-        addButtonIfVisible(x + half + gap, lineY, half, Text.literal("Type: " + TYPE_LABELS[row.targetType]), button -> {
+        addButtonIfVisible(x + half + gap, lineY, half, Component.literal("Type: " + TYPE_LABELS[row.targetType]), button -> {
             row.targetType = Math.floorMod(row.targetType + 1, TYPE_LABELS.length);
             LegionsClient.CONFIG.normalize();
-            clearAndInit();
+            rebuildWidgets();
         });
 
         lineY += 28;
-        addButtonIfVisible(x, lineY, half, Text.literal("Audience: " + AUDIENCE_LABELS[row.visualAudience]), button -> {
+        addButtonIfVisible(x, lineY, half, Component.literal("Audience: " + AUDIENCE_LABELS[row.visualAudience]), button -> {
             row.visualAudience = Math.floorMod(row.visualAudience + 1, AUDIENCE_LABELS.length);
             LegionsClient.CONFIG.normalize();
-            clearAndInit();
+            rebuildWidgets();
         });
         addTextField(x + half + gap, lineY, half, "Color", row.color, "#ffa500", value -> row.color = value);
 
@@ -257,10 +257,10 @@ public class LegionsPingConfigScreen extends Screen {
 
     private void addIconButton(int x, int y, int width, String label, int icon, Consumer<Integer> setter) {
         int normalizedIcon = normalizeIcon(icon);
-        addButtonIfVisible(x, y, width, Text.literal(label + ": " + ICON_SYMBOLS[normalizedIcon] + " " + ICON_LABELS[normalizedIcon]), button -> {
+        addButtonIfVisible(x, y, width, Component.literal(label + ": " + ICON_SYMBOLS[normalizedIcon] + " " + ICON_LABELS[normalizedIcon]), button -> {
             setter.accept(Math.floorMod(normalizedIcon + 1, ICON_LABELS.length));
             LegionsClient.CONFIG.normalize();
-            clearAndInit();
+            rebuildWidgets();
         });
     }
 
@@ -271,33 +271,33 @@ public class LegionsPingConfigScreen extends Screen {
         labels.add(new Label(x + 4, y + 6, label, 0xFFE7F0FF));
         int fieldX = x + FIELD_LABEL_WIDTH;
         int fieldWidth = Math.max(60, width - FIELD_LABEL_WIDTH);
-        TextFieldWidget field = new TextFieldWidget(this.textRenderer, fieldX, y, fieldWidth, BUTTON_HEIGHT, Text.literal(label));
-        field.setText(value == null ? "" : value);
-        field.setPlaceholder(Text.literal(placeholder));
-        field.setChangedListener(setter);
-        addDrawableChild(field);
+        EditBox field = new EditBox(this.font, fieldX, y, fieldWidth, BUTTON_HEIGHT, Component.literal(label));
+        field.setValue(value == null ? "" : value);
+        field.setHint(Component.literal(placeholder));
+        field.setResponder(setter);
+        addRenderableWidget(field);
     }
 
     private void addLabel(int x, int y, String text, int color) {
-        if (y >= CONTENT_TOP && y + textRenderer.fontHeight <= visibleBottom()) {
+        if (y >= CONTENT_TOP && y + font.lineHeight <= visibleBottom()) {
             labels.add(new Label(x, y, text, color));
         }
     }
 
-    private void addButtonIfVisible(int x, int y, int width, Text label, ButtonWidget.PressAction action) {
+    private void addButtonIfVisible(int x, int y, int width, Component label, Button.OnPress action) {
         buttonIfVisible(x, y, width, label, action);
     }
 
-    private ButtonWidget buttonIfVisible(int x, int y, int width, Text label, ButtonWidget.PressAction action) {
+    private Button buttonIfVisible(int x, int y, int width, Component label, Button.OnPress action) {
         if (!isControlVisible(y)) {
             return null;
         }
-        ButtonWidget button = ButtonWidget.builder(label, action).dimensions(x, y, width, BUTTON_HEIGHT).build();
-        addDrawableChild(button);
+        Button button = Button.builder(label, action).bounds(x, y, width, BUTTON_HEIGHT).build();
+        addRenderableWidget(button);
         return button;
     }
 
-    private void renderScrollbar(DrawContext context, int x, int panelWidth, int bottom) {
+    private void renderScrollbar(GuiGraphicsExtractor context, int x, int panelWidth, int bottom) {
         if (maxScroll <= 0 || contentHeight <= 0) {
             return;
         }
@@ -318,7 +318,7 @@ public class LegionsPingConfigScreen extends Screen {
         if (row.keyType == PingRow.KEY_TYPE_MOUSE) {
             return "Mouse " + (row.keyCode + 1);
         }
-        String localized = InputUtil.fromKeyCode(new KeyInput(row.keyCode, 0, 0)).getLocalizedText().getString();
+        String localized = InputConstants.getKey(new KeyEvent(row.keyCode, 0, 0)).getDisplayName().getString();
         return localized == null || localized.isBlank() ? "Key " + row.keyCode : localized;
     }
 

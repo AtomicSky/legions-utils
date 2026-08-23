@@ -2,20 +2,19 @@ package com.legions.client.gui;
 
 import com.legions.client.LegionsClient;
 import com.legions.client.config.LegionsConfig;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.Text;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 public class LegionsClientScreen extends Screen {
     private static final int BUTTON_HEIGHT = 20;
@@ -36,14 +35,14 @@ public class LegionsClientScreen extends Screen {
     private final List<TextFieldLabel> textFieldLabels = new ArrayList<>();
     private final LegionsConfig defaultConfig = new LegionsConfig().normalize();
     private LegionsConfig savedConfig;
-    private ButtonWidget saveButton;
+    private Button saveButton;
     private int panelBottom = 330;
     private int scrollOffset;
     private int maxScroll;
     private int contentHeight;
 
     public LegionsClientScreen(Screen parent) {
-        super(Text.literal("Legions Utils"));
+        super(Component.literal("Legions Utils"));
         this.parent = parent;
         this.savedConfig = LegionsClient.CONFIG == null ? new LegionsConfig().normalize() : LegionsClient.CONFIG.copy();
     }
@@ -64,7 +63,7 @@ public class LegionsClientScreen extends Screen {
         y += ROW_SPACING;
         addSlider(controlX, screenY(y), controlWidth, "UI Scale %", 50, 200, () -> LegionsClient.CONFIG.uiScale, value -> LegionsClient.CONFIG.uiScale = value, defaultConfig.uiScale);
         y += ROW_SPACING;
-        addButton(controlX, screenY(y), controlWidth, Text.literal("Server IPs"), button -> MinecraftClient.getInstance().setScreen(new LegionsServerListScreen(this)));
+        addButton(controlX, screenY(y), controlWidth, Component.literal("Server IPs"), button -> Minecraft.getInstance().gui.setScreen(new LegionsServerListScreen(this)));
         y += ROW_SPACING;
 
         y = addSectionHeader(controlX, y, controlWidth, "Player Info");
@@ -97,7 +96,7 @@ public class LegionsClientScreen extends Screen {
         addToggle(controlX, screenY(y), controlWidth, "Team Ping", () -> LegionsClient.CONFIG.teamPingEnabled, value -> LegionsClient.CONFIG.teamPingEnabled = value, defaultConfig.teamPingEnabled);
         y += ROW_SPACING;
         if (LegionsClient.CONFIG.teamPingEnabled) {
-            addButton(controlX, screenY(y), controlWidth, Text.literal("Customize Team Pings"), button -> MinecraftClient.getInstance().setScreen(new LegionsPingConfigScreen(this)));
+            addButton(controlX, screenY(y), controlWidth, Component.literal("Customize Team Pings"), button -> Minecraft.getInstance().gui.setScreen(new LegionsPingConfigScreen(this)));
             y += ROW_SPACING;
             addToggle(controlX, screenY(y), controlWidth, "Block Ping Distance", () -> LegionsClient.CONFIG.blockPingDistanceLabelEnabled, value -> LegionsClient.CONFIG.blockPingDistanceLabelEnabled = value, defaultConfig.blockPingDistanceLabelEnabled);
             y += ROW_SPACING;
@@ -145,13 +144,13 @@ public class LegionsClientScreen extends Screen {
         if (LegionsClient.CONFIG.teamCountOverlayEnabled) {
             addToggle(controlX, screenY(y), controlWidth, "Team Rating Totals", () -> LegionsClient.CONFIG.teamRatingTotalsEnabled, value -> LegionsClient.CONFIG.teamRatingTotalsEnabled = value, defaultConfig.teamRatingTotalsEnabled);
             y += ROW_SPACING;
-            addButton(controlX, screenY(y), controlWidth, Text.literal("Move Team Count Overlay"), button -> MinecraftClient.getInstance().setScreen(new LegionsTeamCountOverlayLayoutScreen(this)));
+            addButton(controlX, screenY(y), controlWidth, Component.literal("Move Team Count Overlay"), button -> Minecraft.getInstance().gui.setScreen(new LegionsTeamCountOverlayLayoutScreen(this)));
             y += ROW_SPACING;
         }
         addToggle(controlX, screenY(y), controlWidth, "Team HUD", () -> LegionsClient.CONFIG.teamHudEnabled, value -> LegionsClient.CONFIG.teamHudEnabled = value, defaultConfig.teamHudEnabled);
         y += ROW_SPACING;
         if (LegionsClient.CONFIG.teamHudEnabled) {
-            addButton(controlX, screenY(y), controlWidth, Text.literal("Move Team HUD"), button -> MinecraftClient.getInstance().setScreen(new LegionsTeamHudLayoutScreen(this)));
+            addButton(controlX, screenY(y), controlWidth, Component.literal("Move Team HUD"), button -> Minecraft.getInstance().gui.setScreen(new LegionsTeamHudLayoutScreen(this)));
             y += ROW_SPACING;
         }
 
@@ -174,15 +173,15 @@ public class LegionsClientScreen extends Screen {
 
         int buttonY = screenY(y);
         if (isRowVisible(buttonY)) {
-            saveButton = ButtonWidget.builder(Text.literal("Save"), button -> {
+            saveButton = Button.builder(Component.literal("Save"), button -> {
                 LegionsClient.saveConfig();
                 savedConfig = LegionsClient.CONFIG.copy();
-                button.setMessage(Text.literal("Saved"));
+                button.setMessage(Component.literal("Saved"));
                 button.active = false;
-            }).dimensions(controlX, buttonY, controlWidth / 2 - 4, BUTTON_HEIGHT).build();
+            }).bounds(controlX, buttonY, controlWidth / 2 - 4, BUTTON_HEIGHT).build();
             saveButton.active = hasUnsavedChanges();
-            addDrawableChild(saveButton);
-            addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> close()).dimensions(controlX + controlWidth / 2 + 4, buttonY, controlWidth / 2 - 4, BUTTON_HEIGHT).build());
+            addRenderableWidget(saveButton);
+            addRenderableWidget(Button.builder(Component.literal("Done"), button -> onClose()).bounds(controlX + controlWidth / 2 + 4, buttonY, controlWidth / 2 - 4, BUTTON_HEIGHT).build());
         }
         y += BUTTON_HEIGHT + 12;
         contentHeight = y - CONTENT_TOP;
@@ -190,14 +189,14 @@ public class LegionsClientScreen extends Screen {
         int clampedScroll = clamp(scrollOffset, 0, maxScroll);
         if (scrollOffset != clampedScroll) {
             scrollOffset = clampedScroll;
-            clearAndInit();
+            rebuildWidgets();
             return;
         }
         panelBottom = visibleBottom();
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, this.width, this.height, 0x99000000);
         int panelWidth = panelWidth();
         int x = (this.width - panelWidth) / 2;
@@ -212,13 +211,13 @@ public class LegionsClientScreen extends Screen {
             renderSectionHeader(context, header);
         }
         for (TextFieldLabel label : textFieldLabels) {
-            context.drawTextWithShadow(textRenderer, Text.literal(label.label), label.x, label.y, 0xFFE7F0FF);
+            context.text(font, Component.literal(label.label), label.x, label.y, 0xFFE7F0FF);
         }
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 32, 0xFFE7F0FF);
+        context.centeredText(this.font, this.title, this.width / 2, 32, 0xFFE7F0FF);
         if (saveButton != null) {
             saveButton.active = hasUnsavedChanges();
         }
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
     @Override
@@ -231,7 +230,7 @@ public class LegionsClientScreen extends Screen {
             }
             scrollOffset = clamp(scrollOffset - delta, 0, maxScroll);
             if (scrollOffset != oldOffset) {
-                clearAndInit();
+                rebuildWidgets();
                 return true;
             }
         }
@@ -239,9 +238,9 @@ public class LegionsClientScreen extends Screen {
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         LegionsClient.saveConfig();
-        MinecraftClient.getInstance().setScreen(parent);
+        Minecraft.getInstance().gui.setScreen(parent);
     }
 
     private void addToggle(int x, int y, int width, String label, BooleanSupplier getter, Consumer<Boolean> setter, boolean defaultValue) {
@@ -249,31 +248,31 @@ public class LegionsClientScreen extends Screen {
             return;
         }
         int settingWidth = settingControlWidth(width);
-        addDrawableChild(ButtonWidget.builder(toggleText(label, getter.getAsBoolean()), button -> {
+        addRenderableWidget(Button.builder(toggleText(label, getter.getAsBoolean()), button -> {
             boolean value = !getter.getAsBoolean();
             setter.accept(value);
             button.setMessage(toggleText(label, value));
-            clearAndInit();
-        }).dimensions(x, y, settingWidth, BUTTON_HEIGHT).build());
+            rebuildWidgets();
+        }).bounds(x, y, settingWidth, BUTTON_HEIGHT).build());
         addResetButton(x, y, width, getter.getAsBoolean() != defaultValue, () -> {
             setter.accept(defaultValue);
-            clearAndInit();
+            rebuildWidgets();
         });
     }
 
-    private void addButton(int x, int y, int width, Text label, ButtonWidget.PressAction action) {
+    private void addButton(int x, int y, int width, Component label, Button.OnPress action) {
         if (isRowVisible(y)) {
-            addDrawableChild(ButtonWidget.builder(label, action).dimensions(x, y, width, BUTTON_HEIGHT).build());
+            addRenderableWidget(Button.builder(label, action).bounds(x, y, width, BUTTON_HEIGHT).build());
         }
     }
 
     private void addSlider(int x, int y, int width, String label, int min, int max, IntSupplier getter, IntConsumer setter, int defaultValue) {
         if (isRowVisible(y)) {
-            addDrawableChild(new IntSlider(x, y, settingControlWidth(width), label, min, max, getter.getAsInt(), setter));
+            addRenderableWidget(new IntSlider(x, y, settingControlWidth(width), label, min, max, getter.getAsInt(), setter));
             addResetButton(x, y, width, getter.getAsInt() != defaultValue, () -> {
                 setter.accept(defaultValue);
                 LegionsClient.CONFIG.normalize();
-                clearAndInit();
+                rebuildWidgets();
             });
         }
     }
@@ -286,14 +285,14 @@ public class LegionsClientScreen extends Screen {
         int fieldX = x + TEXT_FIELD_LABEL_WIDTH;
         int fieldWidth = Math.max(80, settingWidth - TEXT_FIELD_LABEL_WIDTH);
         textFieldLabels.add(new TextFieldLabel(x + 4, y + 6, label));
-        TextFieldWidget field = new TextFieldWidget(this.textRenderer, fieldX, y, fieldWidth, BUTTON_HEIGHT, Text.literal(label));
-        field.setText(value);
-        field.setPlaceholder(Text.literal(placeholder));
-        field.setChangedListener(setter);
-        addDrawableChild(field);
+        EditBox field = new EditBox(this.font, fieldX, y, fieldWidth, BUTTON_HEIGHT, Component.literal(label));
+        field.setValue(value);
+        field.setHint(Component.literal(placeholder));
+        field.setResponder(setter);
+        addRenderableWidget(field);
         addResetButton(x, y, width, !value.equals(defaultValue), () -> {
             setter.accept(defaultValue);
-            clearAndInit();
+            rebuildWidgets();
         });
     }
 
@@ -301,8 +300,8 @@ public class LegionsClientScreen extends Screen {
         if (!visible) {
             return;
         }
-        addDrawableChild(ButtonWidget.builder(Text.literal("R"), button -> action.run())
-                .dimensions(x + settingControlWidth(width) + RESET_GAP, y, RESET_BUTTON_WIDTH, BUTTON_HEIGHT).build());
+        addRenderableWidget(Button.builder(Component.literal("R"), button -> action.run())
+                .bounds(x + settingControlWidth(width) + RESET_GAP, y, RESET_BUTTON_WIDTH, BUTTON_HEIGHT).build());
     }
 
     private int addSectionHeader(int x, int contentY, int width, String title) {
@@ -313,17 +312,17 @@ public class LegionsClientScreen extends Screen {
         return contentY + SECTION_HEIGHT + SECTION_GAP;
     }
 
-    private void renderSectionHeader(DrawContext context, SectionHeader header) {
+    private void renderSectionHeader(GuiGraphicsExtractor context, SectionHeader header) {
         int lineY = header.y + SECTION_HEIGHT / 2;
         int labelX = header.x + 28;
         int labelY = header.y + 4;
-        int textWidth = textRenderer.getWidth(header.title);
+        int textWidth = font.width(header.title);
         context.fill(header.x, lineY, header.x + 20, lineY + 1, 0x9955E6FF);
-        context.drawTextWithShadow(textRenderer, Text.literal(header.title), labelX, labelY, 0xFF55E6FF);
+        context.text(font, Component.literal(header.title), labelX, labelY, 0xFF55E6FF);
         context.fill(labelX + textWidth + 8, lineY, header.x + header.width, lineY + 1, 0x66354552);
     }
 
-    private void renderScrollbar(DrawContext context, int x, int panelWidth, int bottom) {
+    private void renderScrollbar(GuiGraphicsExtractor context, int x, int panelWidth, int bottom) {
         if (maxScroll <= 0 || contentHeight <= 0) {
             return;
         }
@@ -376,8 +375,8 @@ public class LegionsClientScreen extends Screen {
         return Math.max(min, Math.min(max, value));
     }
 
-    private static Text toggleText(String label, boolean enabled) {
-        return Text.literal(label + "        " + (enabled ? "ON" : "OFF"));
+    private static Component toggleText(String label, boolean enabled) {
+        return Component.literal(label + "        " + (enabled ? "ON" : "OFF"));
     }
 
     private record SectionHeader(int x, int y, int width, String title) {
@@ -386,14 +385,14 @@ public class LegionsClientScreen extends Screen {
     private record TextFieldLabel(int x, int y, String label) {
     }
 
-    private static class IntSlider extends SliderWidget {
+    private static class IntSlider extends AbstractSliderButton {
         private final String label;
         private final int min;
         private final int max;
         private final IntConsumer setter;
 
         private IntSlider(int x, int y, int width, String label, int min, int max, int initial, IntConsumer setter) {
-            super(x, y, width, BUTTON_HEIGHT, Text.empty(), 0.0);
+            super(x, y, width, BUTTON_HEIGHT, Component.empty(), 0.0);
             this.label = label;
             this.min = min;
             this.max = max;
@@ -403,7 +402,7 @@ public class LegionsClientScreen extends Screen {
 
         @Override
         protected void updateMessage() {
-            setMessage(Text.literal(label + "        " + getActualValue()));
+            setMessage(Component.literal(label + "        " + getActualValue()));
         }
 
         @Override
