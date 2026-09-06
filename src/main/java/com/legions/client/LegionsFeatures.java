@@ -165,6 +165,23 @@ public final class LegionsFeatures {
         return Text.empty().append(base).append(suffix);
     }
 
+    public static Text customizeTabListName(PlayerListEntry entry, Text original) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!LegionsClient.ratingNametagsEnabled(client)
+                || !LegionsClient.CONFIG.ratingNametagsIgnoreServerList) {
+            return original;
+        }
+        // Read the original tab entry, never mutate it: rating lookup also uses those entries.
+        if (parseTabListTag(original.getString()) != null) {
+            return original;
+        }
+        TabListTag tag = getRatingTag(client, entry.getProfile().name());
+        if (tag == null) {
+            return original;
+        }
+        return original.copy().append(Text.literal(" ")).append(formatLegionsTag(tag));
+    }
+
     private static Text getNametagSuffix(PlayerEntity player, TabListTag tag) {
         if (tag.isUnknown()) {
             Text atomicsTier = getAtomicsTierSuffix(player);
@@ -614,64 +631,64 @@ public final class LegionsFeatures {
             return QUIP_UNKNOWN_COLOR;
         }
         if (rating >= 2000) {
-            return 0xFC3200;
+            return 0xA80000;
         }
         if (rating >= 1900) {
-            return 0xFC5400;
+            return 0xDA1100;
         }
         if (rating >= 1800) {
-            return 0xFC8700;
+            return 0xFC3200;
         }
         if (rating >= 1700) {
-            return 0xEBA800;
+            return 0xFC5400;
         }
         if (rating >= 1600) {
-            return 0xC9C900;
+            return 0xFC8600;
         }
         if (rating >= 1500) {
-            return 0xA8EB00;
+            return 0xEBA800;
         }
         if (rating >= 1400) {
-            return 0x85C700;
+            return 0xCACA00;
         }
         if (rating >= 1300) {
-            return 0x64A811;
+            return 0xA8EB00;
         }
         if (rating >= 1200) {
-            return 0x448744;
+            return 0x86CA00;
         }
         if (rating >= 1100) {
-            return 0x226575;
+            return 0x65A811;
         }
         if (rating >= 1000) {
-            return 0x1143A8;
+            return 0x438643;
         }
         if (rating >= 900) {
-            return 0x1064C9;
+            return 0x226576;
         }
         if (rating >= 800) {
-            return 0x3285D9;
+            return 0x1143A8;
         }
         if (rating >= 700) {
-            return 0x729BE8;
+            return 0x1165CA;
         }
         if (rating >= 600) {
-            return 0xA7C1F2;
+            return 0x3286DA;
         }
         if (rating >= 500) {
-            return 0xCBDAF7;
+            return 0x54A8EB;
         }
         if (rating >= 400) {
-            return 0xDCE7FC;
+            return 0x76B9FC;
         }
         if (rating >= 300) {
-            return 0xF0F5FF;
+            return 0x97CAFC;
         }
         if (rating >= 200) {
-            return 0xF0F0F0;
+            return 0xB9DAFC;
         }
         if (rating >= 100) {
-            return 0xFFFFFF;
+            return 0xDAEBFC;
         }
         return 0xFCFCFC;
     }
