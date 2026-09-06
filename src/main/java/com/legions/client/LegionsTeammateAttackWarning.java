@@ -17,6 +17,7 @@ public final class LegionsTeammateAttackWarning {
 
     public static void warnIfTeammateAttack(MinecraftClient client, PlayerEntity attacker, Entity target) {
         if (!LegionsClient.enabled(client)
+                || !LegionsClient.CONFIG.teammateAttackWarningEnabled
                 || client.player == null
                 || attacker != client.player
                 || !(target instanceof PlayerEntity teammate)

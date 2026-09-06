@@ -78,6 +78,12 @@ public class LegionsClientScreen extends Screen {
         y += ROW_SPACING;
         addToggle(controlX, screenY(y), controlWidth, "Dynamic Highlight Opacity", () -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled, value -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled = value, defaultConfig.dynamicHighlightOpacityEnabled);
         y += ROW_SPACING;
+        addToggle(controlX, screenY(y), controlWidth, "Teammate Attack Warning", () -> LegionsClient.CONFIG.teammateAttackWarningEnabled, value -> LegionsClient.CONFIG.teammateAttackWarningEnabled = value, defaultConfig.teammateAttackWarningEnabled);
+        y += ROW_SPACING;
+        addSlider(controlX, screenY(y), controlWidth, "Highlight Min Opacity %", 0, 100, () -> LegionsClient.CONFIG.enemyHighlightMinOpacity, value -> LegionsClient.CONFIG.enemyHighlightMinOpacity = value, defaultConfig.enemyHighlightMinOpacity);
+        y += ROW_SPACING;
+        addSlider(controlX, screenY(y), controlWidth, "Highlight Max Opacity %", 0, 100, () -> LegionsClient.CONFIG.enemyHighlightMaxOpacity, value -> LegionsClient.CONFIG.enemyHighlightMaxOpacity = value, defaultConfig.enemyHighlightMaxOpacity);
+        y += ROW_SPACING;
         addToggle(controlX, screenY(y), controlWidth, "Spectator Glow", () -> LegionsClient.CONFIG.spectatorGlowEnabled, value -> LegionsClient.CONFIG.spectatorGlowEnabled = value, defaultConfig.spectatorGlowEnabled);
         y += ROW_SPACING;
 

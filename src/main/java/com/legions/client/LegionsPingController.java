@@ -1116,8 +1116,7 @@ public final class LegionsPingController {
         int icon = rowIcon(client, row, target);
         String label = shortRowLabel(client, row, target, icon);
         sendChat(client, visibleMessage + " [LC:P:" + sender + ":" + targetName
-                + ":color=" + hexColor(color) + ":audience=" + audienceName(row.visualAudience)
-                + ":icon=" + iconName(icon) + ":label=" + payloadLabel(label) + "]");
+                + compactPayloadOptions(color, row.visualAudience, icon, label, PingRow.ICON_STAR) + "]");
         markPlayer(targetName, color, icon, label);
     }
 
@@ -1127,8 +1126,7 @@ public final class LegionsPingController {
         int icon = rowIcon(client, row, null);
         String label = shortRowLabel(client, row, null, icon);
         sendChat(client, visibleMessage + " [LC:B:" + sender + ":" + pos.getX() + ":" + pos.getY() + ":" + pos.getZ()
-                + ":color=" + hexColor(color) + ":audience=" + audienceName(row.visualAudience)
-                + ":icon=" + iconName(icon) + ":label=" + payloadLabel(label) + "]");
+                + compactPayloadOptions(color, row.visualAudience, icon, label, PingRow.ICON_PICKAXE) + "]");
         markBlock(pos, color, icon, label);
     }
 
@@ -1186,6 +1184,24 @@ public final class LegionsPingController {
     private static String cleanVisibleMessage(String template) {
         String message = template == null || template.isBlank() ? "Ping" : template.trim();
         return message.length() > 190 ? message.substring(0, 190) : message;
+    }
+
+    // Keep the existing wire format so older clients can still read compact pings.
+    private static String compactPayloadOptions(int color, int audience, int icon, String label, int defaultIcon) {
+        StringBuilder options = new StringBuilder();
+        if (opaque(color) != opaque(DEFAULT_PING_COLOR)) {
+            options.append(":color=").append(hexColor(color));
+        }
+        if (audience != PingRow.VISUAL_AUDIENCE_TEAMMATES) {
+            options.append(":audience=").append(audienceName(audience));
+        }
+        if (icon != defaultIcon) {
+            options.append(":icon=").append(iconName(icon));
+        }
+        if (!label.equals(defaultIconLabel(icon))) {
+            options.append(":label=").append(payloadLabel(label));
+        }
+        return options.toString();
     }
 
     private static String payloadLabel(String label) {

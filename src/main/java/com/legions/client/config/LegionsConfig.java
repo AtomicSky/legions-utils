@@ -29,6 +29,9 @@ public class LegionsConfig {
     public boolean ratingNametagsIgnoreServerList = false;
     public boolean enemyHighlightsEnabled = false;
     public boolean dynamicHighlightOpacityEnabled = true;
+    public boolean teammateAttackWarningEnabled = true;
+    public int enemyHighlightMinOpacity = 50;
+    public int enemyHighlightMaxOpacity = 100;
     public boolean spectatorGlowEnabled = true;
     public boolean customWorldBorderEnabled = true;
     public String customWorldBorderColor = "#ff5555";
@@ -118,6 +121,8 @@ public class LegionsConfig {
         pingDurationSeconds = clamp(pingDurationSeconds, 1, 25);
         pingRecentTargetTimeoutSeconds = clamp(pingRecentTargetTimeoutSeconds, 1, 60);
         offscreenPingArrowScale = clamp(offscreenPingArrowScale, 50, 200);
+        enemyHighlightMinOpacity = clamp(enemyHighlightMinOpacity, 0, 100);
+        enemyHighlightMaxOpacity = clamp(enemyHighlightMaxOpacity, enemyHighlightMinOpacity, 100);
         offscreenPingArrowMinOpacity = clamp(offscreenPingArrowMinOpacity, 10, 100);
         offscreenPingArrowMaxOpacity = clamp(offscreenPingArrowMaxOpacity, offscreenPingArrowMinOpacity, 100);
         customWorldBorderColor = normalizeColor(customWorldBorderColor);
@@ -146,6 +151,9 @@ public class LegionsConfig {
         copy.ratingNametagsIgnoreServerList = ratingNametagsIgnoreServerList;
         copy.enemyHighlightsEnabled = enemyHighlightsEnabled;
         copy.dynamicHighlightOpacityEnabled = dynamicHighlightOpacityEnabled;
+        copy.enemyHighlightMaxOpacity = enemyHighlightMaxOpacity;
+        copy.enemyHighlightMinOpacity = enemyHighlightMinOpacity;
+        copy.teammateAttackWarningEnabled = teammateAttackWarningEnabled;
         copy.spectatorGlowEnabled = spectatorGlowEnabled;
         copy.customWorldBorderEnabled = customWorldBorderEnabled;
         copy.customWorldBorderColor = customWorldBorderColor;
@@ -197,6 +205,9 @@ public class LegionsConfig {
                 && ratingNametagsIgnoreServerList == other.ratingNametagsIgnoreServerList
                 && enemyHighlightsEnabled == other.enemyHighlightsEnabled
                 && dynamicHighlightOpacityEnabled == other.dynamicHighlightOpacityEnabled
+                && enemyHighlightMaxOpacity == other.enemyHighlightMaxOpacity
+                && enemyHighlightMinOpacity == other.enemyHighlightMinOpacity
+                && teammateAttackWarningEnabled == other.teammateAttackWarningEnabled
                 && spectatorGlowEnabled == other.spectatorGlowEnabled
                 && customWorldBorderEnabled == other.customWorldBorderEnabled
                 && customWorldBorderColor.equals(other.customWorldBorderColor)

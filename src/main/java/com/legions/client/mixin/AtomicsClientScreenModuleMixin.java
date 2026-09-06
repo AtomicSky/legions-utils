@@ -106,6 +106,9 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
         }
         y = legions_client$addToggle(leftX, y, controlWidth, "Enemy Highlights", () -> LegionsClient.CONFIG.enemyHighlightsEnabled, value -> LegionsClient.CONFIG.enemyHighlightsEnabled = value, LEGIONS_DEFAULT_CONFIG.enemyHighlightsEnabled);
         y = legions_client$addToggle(leftX, y, controlWidth, "Dynamic Highlight Opacity", () -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled, value -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled = value, LEGIONS_DEFAULT_CONFIG.dynamicHighlightOpacityEnabled);
+        y = legions_client$addToggle(leftX, y, controlWidth, "Teammate Attack Warning", () -> LegionsClient.CONFIG.teammateAttackWarningEnabled, value -> LegionsClient.CONFIG.teammateAttackWarningEnabled = value, LEGIONS_DEFAULT_CONFIG.teammateAttackWarningEnabled);
+        y = legions_client$addIntSlider(leftX, y, controlWidth, "Highlight Min Opacity %", 0, 100, LegionsClient.CONFIG.enemyHighlightMinOpacity, value -> LegionsClient.CONFIG.enemyHighlightMinOpacity = value, LEGIONS_DEFAULT_CONFIG.enemyHighlightMinOpacity);
+        y = legions_client$addIntSlider(leftX, y, controlWidth, "Highlight Max Opacity %", 0, 100, LegionsClient.CONFIG.enemyHighlightMaxOpacity, value -> LegionsClient.CONFIG.enemyHighlightMaxOpacity = value, LEGIONS_DEFAULT_CONFIG.enemyHighlightMaxOpacity);
         y = legions_client$addToggle(leftX, y, controlWidth, "Spectator Glow", () -> LegionsClient.CONFIG.spectatorGlowEnabled, value -> LegionsClient.CONFIG.spectatorGlowEnabled = value, LEGIONS_DEFAULT_CONFIG.spectatorGlowEnabled);
 
         y = legions_client$addSubHeader(leftX, y, controlWidth, "World Border");
@@ -213,6 +216,9 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
                     "Enemy Highlights", LEGIONS_DEFAULT_CONFIG.enemyHighlightsEnabled, () -> LegionsClient.CONFIG.enemyHighlightsEnabled, value -> LegionsClient.CONFIG.enemyHighlightsEnabled = value);
             rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
                     "Dynamic Highlight Opacity", LEGIONS_DEFAULT_CONFIG.dynamicHighlightOpacityEnabled, () -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled, value -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled = value);
+            rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth, "Teammate Attack Warning", LEGIONS_DEFAULT_CONFIG.teammateAttackWarningEnabled, () -> LegionsClient.CONFIG.teammateAttackWarningEnabled, value -> LegionsClient.CONFIG.teammateAttackWarningEnabled = value);
+            rowY = legions_client$addNativeIntSlider(addIntSlider, intSetterType, leftX, rowY, controlWidth, "Highlight Min Opacity %", LegionsClient.CONFIG.enemyHighlightMinOpacity, 0, 100, 5, LEGIONS_DEFAULT_CONFIG.enemyHighlightMinOpacity, () -> LegionsClient.CONFIG.enemyHighlightMinOpacity, value -> LegionsClient.CONFIG.enemyHighlightMinOpacity = value);
+            rowY = legions_client$addNativeIntSlider(addIntSlider, intSetterType, leftX, rowY, controlWidth, "Highlight Max Opacity %", LegionsClient.CONFIG.enemyHighlightMaxOpacity, 0, 100, 5, LEGIONS_DEFAULT_CONFIG.enemyHighlightMaxOpacity, () -> LegionsClient.CONFIG.enemyHighlightMaxOpacity, value -> LegionsClient.CONFIG.enemyHighlightMaxOpacity = value);
             rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
                     "Spectator Glow", LEGIONS_DEFAULT_CONFIG.spectatorGlowEnabled, () -> LegionsClient.CONFIG.spectatorGlowEnabled, value -> LegionsClient.CONFIG.spectatorGlowEnabled = value);
 

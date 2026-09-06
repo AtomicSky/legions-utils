@@ -238,23 +238,27 @@ public final class LegionsFeatures {
     }
 
     private static int highlightOverlayAlpha(PlayerEntity player) {
+        int minAlpha = LegionsClient.CONFIG == null ? MIN_HIGHLIGHT_OVERLAY_ALPHA
+                : Math.round(clamp(LegionsClient.CONFIG.enemyHighlightMinOpacity, 0, 100) * 2.55f);
+        int maxAlpha = LegionsClient.CONFIG == null ? MAX_HIGHLIGHT_OVERLAY_ALPHA
+                : Math.max(minAlpha, Math.round(clamp(LegionsClient.CONFIG.enemyHighlightMaxOpacity, 0, 100) * 2.55f));
         if (LegionsClient.CONFIG == null || !LegionsClient.CONFIG.dynamicHighlightOpacityEnabled) {
-            return MAX_HIGHLIGHT_OVERLAY_ALPHA;
+            return maxAlpha;
         }
         if (player == null) {
-            return MIN_HIGHLIGHT_OVERLAY_ALPHA;
+            return minAlpha;
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
         TabListTag tag = getRatingTag(client, realUsername(player));
         if (tag == null || tag.isUnknown()) {
-            return MIN_HIGHLIGHT_OVERLAY_ALPHA;
+            return minAlpha;
         }
 
         int clampedRating = clamp(tag.numericRating, MIN_QUIP_OVERLAY_RATING, MAX_QUIP_OVERLAY_RATING);
         float opacity = (float) (clampedRating - MIN_QUIP_OVERLAY_RATING)
                 / (MAX_QUIP_OVERLAY_RATING - MIN_QUIP_OVERLAY_RATING);
-        return MIN_HIGHLIGHT_OVERLAY_ALPHA + Math.round(opacity * (MAX_HIGHLIGHT_OVERLAY_ALPHA - MIN_HIGHLIGHT_OVERLAY_ALPHA));
+        return minAlpha + Math.round(opacity * (maxAlpha - minAlpha));
     }
 
     public static boolean shouldHidePlayerModel(PlayerEntity player) {
