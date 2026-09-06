@@ -619,10 +619,11 @@ public final class LegionsFeatures {
 
     private static Text formatLegionsTag(TabListTag tag) {
         Style style = quipStyle(tag);
+        Style bracketStyle = style.withColor(TextColor.fromRgb(tag.numericRating >= 2000 ? 0x000000 : 0xFFFFFF));
         return Text.empty()
-                .append(Text.literal("[").setStyle(style))
+                .append(Text.literal("[").setStyle(bracketStyle))
                 .append(Text.literal(tag.value).setStyle(style))
-                .append(Text.literal("]").setStyle(style));
+                .append(Text.literal("]").setStyle(bracketStyle));
     }
 
     private static int quipColor(TabListTag tag) {
