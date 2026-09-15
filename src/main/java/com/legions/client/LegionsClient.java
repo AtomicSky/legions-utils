@@ -28,7 +28,7 @@ public class LegionsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         CONFIG = LegionsConfig.load().normalize();
-        LegionsRatingBackendCache.preloadAll();
+        com.legions.client.render.LegionsQuipOutline.initialize();
 
         if (!ATOMICS_CLIENT_LOADED) {
             KeyBinding.Category category = KeyBinding.Category.create(Identifier.of(MOD_ID, "main"));
@@ -102,6 +102,11 @@ public class LegionsClient implements ClientModInitializer {
         return CONFIG != null
                 && CONFIG.enabled
                 && CONFIG.ratingNametagsEnabled
+                && (CONFIG.ratingNametagsIgnoreServerList || LegionsFeatures.isLegionsServer(client));
+    }
+
+    public static boolean quipOutlinesEnabled(MinecraftClient client) {
+        return CONFIG != null && CONFIG.enabled && CONFIG.quipOutlinesEnabled
                 && (CONFIG.ratingNametagsIgnoreServerList || LegionsFeatures.isLegionsServer(client));
     }
 

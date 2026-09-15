@@ -74,6 +74,10 @@ public class LegionsClientScreen extends Screen {
             addToggle(controlX, screenY(y), controlWidth, "Nametags Any Server", () -> LegionsClient.CONFIG.ratingNametagsIgnoreServerList, value -> LegionsClient.CONFIG.ratingNametagsIgnoreServerList = value, defaultConfig.ratingNametagsIgnoreServerList);
             y += ROW_SPACING;
         }
+        addToggle(controlX, screenY(y), controlWidth, "Quip Outlines", () -> LegionsClient.CONFIG.quipOutlinesEnabled, value -> LegionsClient.CONFIG.quipOutlinesEnabled = value, defaultConfig.quipOutlinesEnabled);
+        y += ROW_SPACING;
+        addSlider(controlX, screenY(y), controlWidth, "Quip Outline Width", 1, 8, () -> LegionsClient.CONFIG.quipOutlineWidth, value -> LegionsClient.CONFIG.quipOutlineWidth = value, defaultConfig.quipOutlineWidth);
+        y += ROW_SPACING;
         addToggle(controlX, screenY(y), controlWidth, "Enemy Highlights", () -> LegionsClient.CONFIG.enemyHighlightsEnabled, value -> LegionsClient.CONFIG.enemyHighlightsEnabled = value, defaultConfig.enemyHighlightsEnabled);
         y += ROW_SPACING;
         addToggle(controlX, screenY(y), controlWidth, "Dynamic Highlight Opacity", () -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled, value -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled = value, defaultConfig.dynamicHighlightOpacityEnabled);

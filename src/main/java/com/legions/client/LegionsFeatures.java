@@ -15,7 +15,6 @@ import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 import com.legions.client.render.LegionsPlayerOverlayColorContext;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,11 +34,10 @@ public final class LegionsFeatures {
     private static final int MAX_HIGHLIGHT_OVERLAY_ALPHA = 255;
     private static final Set<UUID> visibleOpponentCache = new HashSet<>();
     private static final Map<String, TabListTag> tabListTagCache = new HashMap<>();
-    private static final Map<String, TabListTag> backendRatingTagCache = new HashMap<>();
+    private static final Map<UUID, TabListTag> backendRatingTagCache = new HashMap<>();
     private static final Map<String, String> normalizedPlayerNameCache = new HashMap<>();
     private static final Map<String, Boolean> spectatorTeamNameCache = new HashMap<>();
     private static final Map<String, Integer> namedTeamColorCache = new HashMap<>();
-    private static final Map<Class<?>, Map<String, Field>> reflectionFieldCache = new HashMap<>();
     private static final TabListTag UNKNOWN_RATING_TAG = new TabListTag("?", -1);
     private static final TabListTag[] parsedRatingTags = new TabListTag[100];
     private static UUID[] visibleOpponentUuids = new UUID[0];
@@ -149,7 +147,7 @@ public final class LegionsFeatures {
         if (shouldUseAtomicsTierSlot(player)) {
             return original;
         }
-        TabListTag tag = getRatingTag(client, realUsername(player));
+        TabListTag tag = getRatingTag(client, player);
         if (tag == null) {
             return original;
         }
@@ -175,7 +173,7 @@ public final class LegionsFeatures {
         if (parseTabListTag(original.getString()) != null) {
             return original;
         }
-        TabListTag tag = getRatingTag(client, entry.getProfile().name());
+        TabListTag tag = getRatingTag(client, entry.getProfile().name(), entry.getProfile().id());
         if (tag == null) {
             return original;
         }
@@ -192,6 +190,17 @@ public final class LegionsFeatures {
 
         String separator = ATOMICS_CLIENT_LOADED ? " " : " | ";
         return Text.empty().append(Text.literal(separator)).append(formatLegionsTag(tag));
+    }
+
+    public static int getQuipOutlineColor(PlayerEntity player) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!LegionsClient.quipOutlinesEnabled(client) || client.player == null
+                || player == client.getCameraEntity() || player.isSpectator()
+                || player.isInvisible() || shouldHidePlayerModel(player)) {
+            return 0;
+        }
+        TabListTag tag = getRatingTag(client, player);
+        return tag == null || tag.isUnknown() ? 0 : 0xFF000000 | quipColor(tag);
     }
 
     public static int getOutlineColor(PlayerEntity player) {
@@ -267,7 +276,7 @@ public final class LegionsFeatures {
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
-        TabListTag tag = getRatingTag(client, realUsername(player));
+        TabListTag tag = getRatingTag(client, player);
         if (tag == null || tag.isUnknown()) {
             return minAlpha;
         }
@@ -401,7 +410,11 @@ public final class LegionsFeatures {
     }
 
     public static int getRating(MinecraftClient client, String playerName) {
-        TabListTag tag = getRatingTag(client, playerName);
+        return getRating(client, playerName, findPlayerUuid(client, playerName));
+    }
+
+    public static int getRating(MinecraftClient client, String playerName, UUID playerUuid) {
+        TabListTag tag = getRatingTag(client, playerName, playerUuid);
         return tag == null ? -1 : tag.numericRating;
     }
 
@@ -409,12 +422,16 @@ public final class LegionsFeatures {
         return getRating(client, playerName);
     }
 
+    public static int getQuips(MinecraftClient client, String playerName, UUID playerUuid) {
+        return getRating(client, playerName, playerUuid);
+    }
+
     public static boolean shouldSuppressAtomicsTierSuffix(PlayerEntity player) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (!LegionsClient.ratingNametagsEnabled(client) || player == null) {
             return false;
         }
-        TabListTag tag = getRatingTag(client, realUsername(player));
+        TabListTag tag = getRatingTag(client, player);
         return tag != null && !tag.isUnknown();
     }
 
@@ -422,7 +439,7 @@ public final class LegionsFeatures {
         if (!shouldUseAtomicsTierSlot(player)) {
             return null;
         }
-        TabListTag tag = getRatingTag(MinecraftClient.getInstance(), realUsername(player));
+        TabListTag tag = getRatingTag(MinecraftClient.getInstance(), player);
         return tag == null || tag.isUnknown() ? null : formatLegionsTag(tag);
     }
 
@@ -430,7 +447,7 @@ public final class LegionsFeatures {
         if (!shouldUseAtomicsTierSlot(player)) {
             return null;
         }
-        TabListTag tag = getRatingTag(MinecraftClient.getInstance(), realUsername(player));
+        TabListTag tag = getRatingTag(MinecraftClient.getInstance(), player);
         return tag != null && tag.isUnknown() ? formatLegionsTag(tag) : null;
     }
 
@@ -450,13 +467,14 @@ public final class LegionsFeatures {
 
         atomicsTierSlotCacheTick = tick;
         try {
-            Object config = getStaticField(atomicsClientClass(), "CONFIG");
-            if (config == null || !getBooleanField(config, "enabled")) {
+            Object config = LegionsReflection.getStatic(atomicsClientClass(), "CONFIG");
+            if (config == null || !LegionsReflection.getBoolean(config, "enabled")) {
                 atomicsTierSlotEnabledCache = false;
                 return false;
             }
-            Object pvp = getField(config, "pvp");
-            atomicsTierSlotEnabledCache = pvp != null && getBooleanField(pvp, "opponentStatsNametagEnabled");
+            Object pvp = LegionsReflection.get(config, "pvp");
+            atomicsTierSlotEnabledCache = pvp != null
+                    && LegionsReflection.getBoolean(pvp, "opponentStatsNametagEnabled");
             return atomicsTierSlotEnabledCache;
         } catch (ReflectiveOperationException | RuntimeException e) {
             LegionsClient.LOGGER.debug("Atomics tier slot config is not available.", e);
@@ -473,13 +491,17 @@ public final class LegionsFeatures {
         return tabListTagCache.get(normalizedPlayerName(playerName));
     }
 
-    private static TabListTag getRatingTag(MinecraftClient client, String playerName) {
+    private static TabListTag getRatingTag(MinecraftClient client, PlayerEntity player) {
+        return player == null ? null : getRatingTag(client, realUsername(player), player.getUuid());
+    }
+
+    private static TabListTag getRatingTag(MinecraftClient client, String playerName, UUID playerUuid) {
         TabListTag tabListTag = getTabListTag(client, playerName);
         if (tabListTag != null && !tabListTag.isUnknown()) {
             return tabListTag;
         }
 
-        TabListTag backendTag = getBackendRatingTag(client, playerName);
+        TabListTag backendTag = getBackendRatingTag(client, playerUuid);
         if (backendTag != null) {
             return backendTag;
         }
@@ -489,29 +511,29 @@ public final class LegionsFeatures {
         return LegionsClient.ratingNametagsEnabled(client) ? unknownRatingTag() : null;
     }
 
-    private static TabListTag getBackendRatingTag(MinecraftClient client, String playerName) {
-        if (!canUseBackendRatings(client) || playerName == null || playerName.isBlank()) {
+    private static TabListTag getBackendRatingTag(MinecraftClient client, UUID playerUuid) {
+        if (!canUseBackendRatings(client) || playerUuid == null) {
             return null;
         }
 
-        String key = normalizedPlayerName(playerName.trim());
-        TabListTag cachedTag = backendRatingTagCache.get(key);
+        TabListTag cachedTag = backendRatingTagCache.get(playerUuid);
         if (cachedTag != null) {
             return cachedTag;
         }
 
-        Double rating = LegionsRatingBackendCache.getCachedNormalized(key);
+        Double rating = LegionsRatingBackendCache.getCached(playerUuid);
         if (rating == null) {
-            LegionsRatingBackendCache.preloadAll();
+            LegionsRatingBackendCache.preload(playerUuid);
             return null;
         }
         TabListTag tag = backendRatingTag(rating);
-        backendRatingTagCache.put(key, tag);
+        backendRatingTagCache.put(playerUuid, tag);
         return tag;
     }
 
     private static boolean canUseBackendRatings(MinecraftClient client) {
-        return LegionsClient.enabled(client) || LegionsClient.ratingNametagsEnabled(client);
+        return LegionsClient.enabled(client) || LegionsClient.ratingNametagsEnabled(client)
+                || LegionsClient.quipOutlinesEnabled(client);
     }
 
     private static void refreshTabListTagCache(MinecraftClient client) {
@@ -535,6 +557,22 @@ public final class LegionsFeatures {
                 tabListTagCache.put(normalizedPlayerName(entry.getProfile().name()), tag);
             }
         }
+    }
+
+    private static UUID findPlayerUuid(MinecraftClient client, String playerName) {
+        if (client == null || client.getNetworkHandler() == null || playerName == null) {
+            return null;
+        }
+        String normalizedName = normalizedPlayerName(playerName.trim());
+        if (normalizedName.isEmpty()) {
+            return null;
+        }
+        for (PlayerListEntry entry : client.getNetworkHandler().getPlayerList()) {
+            if (entry != null && normalizedName.equals(normalizedPlayerName(entry.getProfile().name()))) {
+                return entry.getProfile().id();
+            }
+        }
+        return null;
     }
 
     private static Text getAtomicsTierSuffix(PlayerEntity player) {
@@ -692,30 +730,6 @@ public final class LegionsFeatures {
             return 0xDAEBFC;
         }
         return 0xFCFCFC;
-    }
-
-    private static Object getStaticField(Class<?> owner, String name) throws ReflectiveOperationException {
-        return cachedField(owner, name).get(null);
-    }
-
-    private static Object getField(Object owner, String name) throws ReflectiveOperationException {
-        return cachedField(owner.getClass(), name).get(owner);
-    }
-
-    private static boolean getBooleanField(Object owner, String name) throws ReflectiveOperationException {
-        Object value = getField(owner, name);
-        return value instanceof Boolean bool && bool;
-    }
-
-    private static Field cachedField(Class<?> owner, String name) throws NoSuchFieldException {
-        Map<String, Field> ownerFields = reflectionFieldCache.computeIfAbsent(owner, ignored -> new HashMap<>());
-        Field field = ownerFields.get(name);
-        if (field == null) {
-            field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            ownerFields.put(name, field);
-        }
-        return field;
     }
 
     private static Class<?> atomicsClientClass() throws ClassNotFoundException {

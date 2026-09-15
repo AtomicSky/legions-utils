@@ -1,5 +1,6 @@
 package com.legions.client.mixin;
 
+import com.legions.client.LegionsReflection;
 import com.legions.client.LegionsSpectateLock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.player.PlayerEntity;
@@ -15,10 +16,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
-
 @Pseudo
 @Mixin(targets = "com.atomics.client.DualSpectateCamera")
 public abstract class AtomicsDualSpectateCameraMixin {
@@ -28,7 +25,6 @@ public abstract class AtomicsDualSpectateCameraMixin {
     private static final float LOCKED_MAX_Y_DIFFERENCE = 10.0F;
     private static final double MIN_USEFUL_CAMERA_DISTANCE_SQUARED = 4.0D;
     private static final double WALL_BACKOFF = 0.35D;
-    private static final Map<Class<?>, Map<String, Field>> FIELD_CACHE = new HashMap<>();
     private static Class<?> atomicsClientClass;
 
     @Inject(method = "tick", at = @At("HEAD"), remap = false)
@@ -170,12 +166,12 @@ public abstract class AtomicsDualSpectateCameraMixin {
 
     private static void forceDualSpectateDefaults() {
         try {
-            Object config = cachedField(atomicsClientClass(), "CONFIG").get(null);
+            Object config = LegionsReflection.getStatic(atomicsClientClass(), "CONFIG");
             if (config == null) {
                 return;
             }
 
-            Object pvp = cachedField(config.getClass(), "pvp").get(config);
+            Object pvp = LegionsReflection.get(config, "pvp");
             if (pvp == null) {
                 return;
             }
@@ -193,15 +189,14 @@ public abstract class AtomicsDualSpectateCameraMixin {
             return false;
         }
         try {
-            Object value = cachedField(pvp.getClass(), "dualSpectateOverheadEnabled").get(pvp);
-            return value instanceof Boolean enabled && enabled;
+            return LegionsReflection.getBoolean(pvp, "dualSpectateOverheadEnabled");
         } catch (ReflectiveOperationException | RuntimeException ignored) {
             return false;
         }
     }
 
     private static void setFloatField(Object owner, String fieldName, float value) throws ReflectiveOperationException {
-        Field field = cachedField(owner.getClass(), fieldName);
+        var field = LegionsReflection.field(owner.getClass(), fieldName);
         if (field.getType() == float.class) {
             field.setFloat(owner, value);
         } else if (field.getType() == double.class) {
@@ -216,14 +211,4 @@ public abstract class AtomicsDualSpectateCameraMixin {
         return atomicsClientClass;
     }
 
-    private static Field cachedField(Class<?> owner, String name) throws NoSuchFieldException {
-        Map<String, Field> fields = FIELD_CACHE.computeIfAbsent(owner, ignored -> new HashMap<>());
-        Field field = fields.get(name);
-        if (field == null) {
-            field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            fields.put(name, field);
-        }
-        return field;
-    }
 }

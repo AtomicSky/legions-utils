@@ -26,51 +26,53 @@ public class LegionsConfig {
     public int uiScale = 100;
     public List<String> allowedServerAddresses = new ArrayList<>(List.of("legions"));
     public boolean ratingNametagsEnabled = true;
-    public boolean ratingNametagsIgnoreServerList = false;
-    public boolean enemyHighlightsEnabled = false;
+    public boolean ratingNametagsIgnoreServerList = true;
+    public boolean enemyHighlightsEnabled = true;
+    public boolean quipOutlinesEnabled = false;
+    public int quipOutlineWidth = 3;
     public boolean dynamicHighlightOpacityEnabled = true;
-    public boolean teammateAttackWarningEnabled = true;
+    public boolean teammateAttackWarningEnabled = false;
     public int enemyHighlightMinOpacity = 50;
     public int enemyHighlightMaxOpacity = 100;
     public boolean spectatorGlowEnabled = true;
     public boolean customWorldBorderEnabled = true;
-    public String customWorldBorderColor = "#ff5555";
-    public int customWorldBorderOpacity = 70;
-    public boolean customWorldBorderHideGlitterParticles = false;
-    public boolean teamPingEnabled = true;
-    public boolean blockPingDistanceLabelEnabled = true;
+    public String customWorldBorderColor = "#ffa500";
+    public int customWorldBorderOpacity = 50;
+    public boolean customWorldBorderHideGlitterParticles = true;
+    public boolean teamPingEnabled = false;
+    public boolean blockPingDistanceLabelEnabled = false;
     public boolean offscreenPingArrowsEnabled = true;
-    public boolean offscreenPingArrowDistanceEnabled = true;
+    public boolean offscreenPingArrowDistanceEnabled = false;
     public int offscreenPingArrowScale = 100;
     public boolean offscreenPingArrowDistanceFadeEnabled = true;
     public int offscreenPingArrowMinOpacity = 35;
     public int offscreenPingArrowMaxOpacity = 100;
-    public boolean teamFightDetectorEnabled = true;
+    public boolean teamFightDetectorEnabled = false;
     public boolean teamFightDetectorSpectatorOnly = false;
     public int teamFightDetectionRadius = 24;
     public int teamFightMinPlayers = 3;
     public int teamFightMinTeams = 2;
     public int teamFightMarkerDurationSeconds = 6;
-    public String teamFightMarkerColor = "#ff5555";
+    public String teamFightMarkerColor = "#ffa500";
     public boolean teamFightDistanceLabelEnabled = true;
     public boolean teamFightSmoothingEnabled = true;
     public int teamFightSmoothingStrength = 35;
-    public int teamFightFadeOutSeconds = 3;
+    public int teamFightFadeOutSeconds = 1;
     public boolean teamHudEnabled = true;
-    public boolean teamCountOverlayEnabled = false;
+    public boolean teamCountOverlayEnabled = true;
     public boolean teamRatingTotalsEnabled = true;
-    public boolean opponentLimitEnabled = true;
-    public boolean playerRenderOptimizationEnabled = true;
+    public boolean opponentLimitEnabled = false;
+    public boolean playerRenderOptimizationEnabled = false;
     public boolean adaptivePerformanceEnabled = false;
-    public int opponentLimit = 5;
-    public int playerRenderDistance = 64;
+    public int opponentLimit = 6;
+    public int playerRenderDistance = 160;
     public int pingDurationSeconds = 10;
     public int pingRecentTargetTimeoutSeconds = 15;
     public List<PingRow> pingRows = defaultPingRows();
-    public int teamHudX = 8;
-    public int teamHudY = 8;
-    public int teamCountOverlayX = -1;
-    public int teamCountOverlayY = -1;
+    public int teamHudX = 294;
+    public int teamHudY = 2;
+    public int teamCountOverlayX = 495;
+    public int teamCountOverlayY = 0;
 
     public static LegionsConfig load() {
         Path path = configPath();
@@ -123,6 +125,7 @@ public class LegionsConfig {
         offscreenPingArrowScale = clamp(offscreenPingArrowScale, 50, 200);
         enemyHighlightMinOpacity = clamp(enemyHighlightMinOpacity, 0, 100);
         enemyHighlightMaxOpacity = clamp(enemyHighlightMaxOpacity, enemyHighlightMinOpacity, 100);
+        quipOutlineWidth = clamp(quipOutlineWidth, 1, 8);
         offscreenPingArrowMinOpacity = clamp(offscreenPingArrowMinOpacity, 10, 100);
         offscreenPingArrowMaxOpacity = clamp(offscreenPingArrowMaxOpacity, offscreenPingArrowMinOpacity, 100);
         customWorldBorderColor = normalizeColor(customWorldBorderColor);
@@ -150,6 +153,8 @@ public class LegionsConfig {
         copy.ratingNametagsEnabled = ratingNametagsEnabled;
         copy.ratingNametagsIgnoreServerList = ratingNametagsIgnoreServerList;
         copy.enemyHighlightsEnabled = enemyHighlightsEnabled;
+        copy.quipOutlinesEnabled = quipOutlinesEnabled;
+        copy.quipOutlineWidth = quipOutlineWidth;
         copy.dynamicHighlightOpacityEnabled = dynamicHighlightOpacityEnabled;
         copy.enemyHighlightMaxOpacity = enemyHighlightMaxOpacity;
         copy.enemyHighlightMinOpacity = enemyHighlightMinOpacity;
@@ -204,6 +209,8 @@ public class LegionsConfig {
                 && ratingNametagsEnabled == other.ratingNametagsEnabled
                 && ratingNametagsIgnoreServerList == other.ratingNametagsIgnoreServerList
                 && enemyHighlightsEnabled == other.enemyHighlightsEnabled
+                && quipOutlinesEnabled == other.quipOutlinesEnabled
+                && quipOutlineWidth == other.quipOutlineWidth
                 && dynamicHighlightOpacityEnabled == other.dynamicHighlightOpacityEnabled
                 && enemyHighlightMaxOpacity == other.enemyHighlightMaxOpacity
                 && enemyHighlightMinOpacity == other.enemyHighlightMinOpacity
@@ -379,37 +386,56 @@ public class LegionsConfig {
     public static ArrayList<PingRow> defaultPingRows() {
         ArrayList<PingRow> rows = new ArrayList<>();
 
-        PingRow playerPing = new PingRow();
-        playerPing.keyType = PingRow.KEY_TYPE_KEYBOARD;
-        playerPing.keyCode = 71;
-        playerPing.presses = 1;
-        playerPing.targetSource = PingRow.TARGET_SOURCE_CROSSHAIR;
-        playerPing.targetType = PingRow.TARGET_TYPE_ALL_PLAYERS_DIFFERENT_MESSAGE;
-        playerPing.message = "Focus {PLAYER}";
-        playerPing.teammateMessage = "{PLAYER} NEEDS HELP!";
-        playerPing.enemyMessage = "Focus {PLAYER}";
-        playerPing.color = "#ffa500";
-        playerPing.icon = PingRow.ICON_SWORD;
-        playerPing.messageIcon = PingRow.ICON_SWORD;
-        playerPing.teammateMessageIcon = PingRow.ICON_HEART;
-        playerPing.enemyMessageIcon = PingRow.ICON_SWORD;
-        playerPing.visualAudience = PingRow.VISUAL_AUDIENCE_TEAMMATES;
-        rows.add(playerPing.normalize());
+        PingRow ping1 = new PingRow();
+        ping1.keyType = 0;
+        ping1.keyCode = 96;
+        ping1.presses = 1;
+        ping1.targetSource = 0;
+        ping1.targetType = 3;
+        ping1.message = "Focus {player}";
+        ping1.teammateMessage = "{player} needs help!";
+        ping1.enemyMessage = "Focus {player}";
+        ping1.color = "#ffa500";
+        ping1.visualAudience = 0;
+        ping1.icon = 0;
+        ping1.messageIcon = 3;
+        ping1.teammateMessageIcon = 11;
+        ping1.enemyMessageIcon = 3;
+        rows.add(ping1.normalize());
 
-        PingRow blockPing = new PingRow();
-        blockPing.keyType = PingRow.KEY_TYPE_KEYBOARD;
-        blockPing.keyCode = 71;
-        blockPing.presses = 2;
-        blockPing.targetSource = PingRow.TARGET_SOURCE_CROSSHAIR;
-        blockPing.targetType = PingRow.TARGET_TYPE_BLOCKS_ONLY;
-        blockPing.message = "Go to {x} {y} {z}";
-        blockPing.teammateMessage = "{PLAYER} NEEDS HELP!";
-        blockPing.enemyMessage = "Focus {PLAYER}";
-        blockPing.color = "#ffa500";
-        blockPing.icon = PingRow.ICON_HOME;
-        blockPing.messageIcon = PingRow.ICON_HOME;
-        blockPing.visualAudience = PingRow.VISUAL_AUDIENCE_TEAMMATES;
-        rows.add(blockPing.normalize());
+        PingRow ping2 = new PingRow();
+        ping2.keyType = 0;
+        ping2.keyCode = 96;
+        ping2.presses = 2;
+        ping2.targetSource = 0;
+        ping2.targetType = 4;
+        ping2.message = "Go to {x} {y} {z}";
+        ping2.teammateMessage = "{player} needs help!";
+        ping2.enemyMessage = "Focus {player}";
+        ping2.color = "#ffa500";
+        ping2.visualAudience = 0;
+        ping2.icon = 1;
+        ping2.messageIcon = 13;
+        ping2.teammateMessageIcon = 11;
+        ping2.enemyMessageIcon = 3;
+        rows.add(ping2.normalize());
+
+        PingRow ping3 = new PingRow();
+        ping3.keyType = 0;
+        ping3.keyCode = 96;
+        ping3.presses = 3;
+        ping3.targetSource = 3;
+        ping3.targetType = 2;
+        ping3.message = "I need help!";
+        ping3.teammateMessage = "{player} needs help!";
+        ping3.enemyMessage = "Focus {player}";
+        ping3.color = "#ffa500";
+        ping3.visualAudience = 0;
+        ping3.icon = 2;
+        ping3.messageIcon = 11;
+        ping3.teammateMessageIcon = 11;
+        ping3.enemyMessageIcon = 3;
+        rows.add(ping3.normalize());
 
         return rows;
     }

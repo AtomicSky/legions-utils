@@ -8,9 +8,6 @@ import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
-import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 public final class LegionsSpectateLock {
@@ -31,7 +28,6 @@ public final class LegionsSpectateLock {
     private static String lastLoggedSecondName = "";
     private static String lastLoggedMissingReason = "";
     private static Class<?> atomicsClientClass;
-    private static final Map<Class<?>, Map<String, Field>> FIELD_CACHE = new HashMap<>();
 
     private LegionsSpectateLock() {
     }
@@ -117,11 +113,11 @@ public final class LegionsSpectateLock {
         boolean autoFill;
         try {
             pvp = atomicsPvp();
-            if (!getBooleanField(pvp, "dualSpectateEnabled")) {
+            if (!LegionsReflection.getBoolean(pvp, "dualSpectateEnabled")) {
                 unlock(client, true, false);
                 return;
             }
-            autoFill = getBooleanField(pvp, "dualSpectateAutoFill");
+            autoFill = LegionsReflection.getBoolean(pvp, "dualSpectateAutoFill");
             if (savedAtomicsState) {
                 savedDualSpectateAutoFill = autoFill;
             }
@@ -166,11 +162,13 @@ public final class LegionsSpectateLock {
         }
 
         try {
-            PlayerEntity playerOne = findReplacementPlayer(client, getStringField(pvp, "dualSpectatePlayerOne"), previousLockedName);
+            PlayerEntity playerOne = findReplacementPlayer(client,
+                    LegionsReflection.getString(pvp, "dualSpectatePlayerOne"), previousLockedName);
             if (playerOne != null) {
                 return playerOne;
             }
-            PlayerEntity playerTwo = findReplacementPlayer(client, getStringField(pvp, "dualSpectatePlayerTwo"), previousLockedName);
+            PlayerEntity playerTwo = findReplacementPlayer(client,
+                    LegionsReflection.getString(pvp, "dualSpectatePlayerTwo"), previousLockedName);
             if (playerTwo != null) {
                 return playerTwo;
             }
@@ -267,14 +265,14 @@ public final class LegionsSpectateLock {
 
     private static void updateLockedPair(MinecraftClient client, Object pvp, PlayerEntity lockedPlayer,
                                          boolean autoFill) throws ReflectiveOperationException {
-        setField(pvp, "dualSpectateEnabled", true);
-        setField(pvp, "dualSpectateAutoFill", autoFill);
+        LegionsReflection.set(pvp, "dualSpectateEnabled", true);
+        LegionsReflection.set(pvp, "dualSpectateAutoFill", autoFill);
         String lockedName = LegionsFeatures.realUsername(lockedPlayer);
-        setField(pvp, "dualSpectatePlayerOne", lockedName);
+        LegionsReflection.set(pvp, "dualSpectatePlayerOne", lockedName);
 
         PlayerEntity second = findBestSecondPlayer(client, lockedPlayer);
         String secondName = second == null ? "" : LegionsFeatures.realUsername(second);
-        setField(pvp, "dualSpectatePlayerTwo", secondName);
+        LegionsReflection.set(pvp, "dualSpectatePlayerTwo", secondName);
         lastSecondPlayerName = secondName;
         logPairChange(lockedName, secondName,
                 second == null ? -1.0 : lockedPlayer.squaredDistanceTo(second),
@@ -285,17 +283,17 @@ public final class LegionsSpectateLock {
         try {
             Object pvp = atomicsPvp();
             if (!savedAtomicsState) {
-                savedDualSpectateEnabled = getBooleanField(pvp, "dualSpectateEnabled");
-                savedDualSpectateAutoFill = getBooleanField(pvp, "dualSpectateAutoFill");
-                savedDualSpectatePlayerOne = getStringField(pvp, "dualSpectatePlayerOne");
-                savedDualSpectatePlayerTwo = getStringField(pvp, "dualSpectatePlayerTwo");
+                savedDualSpectateEnabled = LegionsReflection.getBoolean(pvp, "dualSpectateEnabled");
+                savedDualSpectateAutoFill = LegionsReflection.getBoolean(pvp, "dualSpectateAutoFill");
+                savedDualSpectatePlayerOne = LegionsReflection.getString(pvp, "dualSpectatePlayerOne");
+                savedDualSpectatePlayerTwo = LegionsReflection.getString(pvp, "dualSpectatePlayerTwo");
                 savedAtomicsState = true;
             }
 
             lockedPlayerName = playerName;
             lastSecondPlayerName = "";
             clearLastLoggedPair();
-            setField(pvp, "dualSpectateEnabled", true);
+            LegionsReflection.set(pvp, "dualSpectateEnabled", true);
             tick(client);
             String suffix = lastSecondPlayerName == null || lastSecondPlayerName.isBlank() ? "" : " + " + lastSecondPlayerName;
             sendAction(client, "Dual spectate locked: " + playerName + suffix);
@@ -317,10 +315,10 @@ public final class LegionsSpectateLock {
         try {
             if (savedAtomicsState) {
                 Object pvp = atomicsPvp();
-                setField(pvp, "dualSpectateAutoFill", savedDualSpectateAutoFill);
-                setField(pvp, "dualSpectatePlayerOne", savedDualSpectatePlayerOne);
-                setField(pvp, "dualSpectatePlayerTwo", savedDualSpectatePlayerTwo);
-                setField(pvp, "dualSpectateEnabled", restoreEnabled && savedDualSpectateEnabled);
+                LegionsReflection.set(pvp, "dualSpectateAutoFill", savedDualSpectateAutoFill);
+                LegionsReflection.set(pvp, "dualSpectatePlayerOne", savedDualSpectatePlayerOne);
+                LegionsReflection.set(pvp, "dualSpectatePlayerTwo", savedDualSpectatePlayerTwo);
+                LegionsReflection.set(pvp, "dualSpectateEnabled", restoreEnabled && savedDualSpectateEnabled);
             }
         } catch (ReflectiveOperationException | RuntimeException e) {
             LegionsClient.LOGGER.debug("Failed to restore Atomics dual spectate settings.", e);
@@ -342,10 +340,11 @@ public final class LegionsSpectateLock {
     private static void clearAtomicsPair(boolean autoFill) {
         try {
             Object pvp = atomicsPvp();
-            setField(pvp, "dualSpectateEnabled", true);
-            setField(pvp, "dualSpectateAutoFill", autoFill);
-            setField(pvp, "dualSpectatePlayerOne", autoFill || lockedPlayerName == null ? "" : lockedPlayerName);
-            setField(pvp, "dualSpectatePlayerTwo", "");
+            LegionsReflection.set(pvp, "dualSpectateEnabled", true);
+            LegionsReflection.set(pvp, "dualSpectateAutoFill", autoFill);
+            LegionsReflection.set(pvp, "dualSpectatePlayerOne",
+                    autoFill || lockedPlayerName == null ? "" : lockedPlayerName);
+            LegionsReflection.set(pvp, "dualSpectatePlayerTwo", "");
         } catch (ReflectiveOperationException | RuntimeException e) {
             LegionsClient.LOGGER.debug("Failed to clear pending Atomics dual spectate lock.", e);
         }
@@ -487,11 +486,11 @@ public final class LegionsSpectateLock {
     }
 
     private static Object atomicsPvp() throws ReflectiveOperationException {
-        Object config = getStaticField(atomicsClientClass(), "CONFIG");
+        Object config = LegionsReflection.getStatic(atomicsClientClass(), "CONFIG");
         if (config == null) {
             throw new NoSuchFieldException("Atomics CONFIG is null");
         }
-        Object pvp = getField(config, "pvp");
+        Object pvp = LegionsReflection.get(config, "pvp");
         if (pvp == null) {
             throw new NoSuchFieldException("Atomics pvp config is null");
         }
@@ -503,39 +502,6 @@ public final class LegionsSpectateLock {
             atomicsClientClass = Class.forName("com.atomics.client.AtomicsClient");
         }
         return atomicsClientClass;
-    }
-
-    private static Object getStaticField(Class<?> owner, String name) throws ReflectiveOperationException {
-        return cachedField(owner, name).get(null);
-    }
-
-    private static Object getField(Object owner, String name) throws ReflectiveOperationException {
-        return cachedField(owner.getClass(), name).get(owner);
-    }
-
-    private static boolean getBooleanField(Object owner, String name) throws ReflectiveOperationException {
-        Object value = getField(owner, name);
-        return value instanceof Boolean bool && bool;
-    }
-
-    private static String getStringField(Object owner, String name) throws ReflectiveOperationException {
-        Object value = getField(owner, name);
-        return value instanceof String text ? text : "";
-    }
-
-    private static void setField(Object owner, String name, Object value) throws ReflectiveOperationException {
-        cachedField(owner.getClass(), name).set(owner, value);
-    }
-
-    private static Field cachedField(Class<?> owner, String name) throws NoSuchFieldException {
-        Map<String, Field> ownerFields = FIELD_CACHE.computeIfAbsent(owner, ignored -> new HashMap<>());
-        Field field = ownerFields.get(name);
-        if (field == null) {
-            field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            ownerFields.put(name, field);
-        }
-        return field;
     }
 
     private static void sendAction(MinecraftClient client, String message) {

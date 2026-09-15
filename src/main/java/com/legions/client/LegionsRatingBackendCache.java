@@ -3,21 +3,21 @@ package com.legions.client;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Locale;
-import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class LegionsRatingBackendCache {
     private static final HttpClient CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
-    private static final AtomicBoolean LOADING = new AtomicBoolean();
-    private static volatile boolean loaded;
-    private static volatile long retryAfterNanos;
-    private static volatile Map<String, Double> cache = Map.of();
-    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+    private static final ConcurrentMap<UUID, Double> CACHE = new ConcurrentHashMap<>();
+    private static final Set<UUID> LOADING = ConcurrentHashMap.newKeySet();
+    private static final ConcurrentMap<UUID, Long> RETRY_AFTER_NANOS = new ConcurrentHashMap<>();
+    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(4, runnable -> {
         Thread thread = new Thread(runnable, "LegionsClient-RatingsApi");
         thread.setDaemon(true);
         return thread;
@@ -26,56 +26,39 @@ public final class LegionsRatingBackendCache {
     private LegionsRatingBackendCache() {
     }
 
-    public static Double getCached(String playerName) {
-        String key = normalizeKey(playerName);
-        return key.isEmpty() ? null : cache.get(key);
+    public static Double getCached(UUID playerUuid) {
+        return playerUuid == null ? null : CACHE.get(playerUuid);
     }
 
-    static Double getCachedNormalized(String normalizedPlayerName) {
-        return cache.get(normalizedPlayerName);
-    }
-
-    public static void preloadAll() {
-        if (!LegionsRatingsApi.isConfigured() || loaded
-                || (retryAfterNanos != 0 && System.nanoTime() - retryAfterNanos < 0)) {
+    public static void preload(UUID playerUuid) {
+        if (playerUuid == null || CACHE.containsKey(playerUuid)) {
             return;
         }
-        if (LOADING.compareAndSet(false, true)) {
-            EXECUTOR.execute(LegionsRatingBackendCache::fetchRatings);
+        long retryAfter = RETRY_AFTER_NANOS.getOrDefault(playerUuid, 0L);
+        if ((retryAfter == 0 || System.nanoTime() - retryAfter >= 0) && LOADING.add(playerUuid)) {
+            EXECUTOR.execute(() -> fetchRating(playerUuid));
         }
     }
 
-    public static void preload(String playerName) {
-        if (!normalizeKey(playerName).isEmpty()) {
-            preloadAll();
-        }
-    }
-
-    private static void fetchRatings() {
+    private static void fetchRating(UUID playerUuid) {
         try {
             HttpResponse<String> response = CLIENT.send(
-                    LegionsRatingsApi.createRequest(), HttpResponse.BodyHandlers.ofString());
+                    LegionsRatingsApi.createRequest(playerUuid), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
                 throw new IllegalStateException("Ratings API returned HTTP " + response.statusCode());
             }
-            Map<String, Double> ratings = LegionsRatingsApi.parseResponse(response.body());
-            cache = Map.copyOf(ratings);
-            loaded = true;
-            LegionsClient.LOGGER.info("Loaded {} Legions ratings from API.", ratings.size());
+            CACHE.put(playerUuid, LegionsRatingsApi.parseRating(response.body(), playerUuid));
+            RETRY_AFTER_NANOS.remove(playerUuid);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            LegionsClient.LOGGER.debug("Ratings API request interrupted.", e);
+            LegionsClient.LOGGER.debug("Ratings API request for {} interrupted.", playerUuid, e);
         } catch (Exception e) {
-            LegionsClient.LOGGER.debug("Failed to fetch Legions ratings from API.", e);
+            LegionsClient.LOGGER.debug("Failed to fetch Legions rating for {} from API.", playerUuid, e);
         } finally {
-            if (!loaded) {
-                retryAfterNanos = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+            if (!CACHE.containsKey(playerUuid)) {
+                RETRY_AFTER_NANOS.put(playerUuid, System.nanoTime() + Duration.ofSeconds(60).toNanos());
             }
-            LOADING.set(false);
+            LOADING.remove(playerUuid);
         }
-    }
-
-    private static String normalizeKey(String playerName) {
-        return playerName == null ? "" : playerName.trim().toLowerCase(Locale.ROOT);
     }
 }

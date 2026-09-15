@@ -104,6 +104,8 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
         if (LegionsClient.CONFIG.ratingNametagsEnabled) {
             y = legions_client$addToggle(leftX, y, controlWidth, "Nametags Any Server", () -> LegionsClient.CONFIG.ratingNametagsIgnoreServerList, value -> LegionsClient.CONFIG.ratingNametagsIgnoreServerList = value, LEGIONS_DEFAULT_CONFIG.ratingNametagsIgnoreServerList);
         }
+        y = legions_client$addToggle(leftX, y, controlWidth, "Quip Outlines", () -> LegionsClient.CONFIG.quipOutlinesEnabled, value -> LegionsClient.CONFIG.quipOutlinesEnabled = value, LEGIONS_DEFAULT_CONFIG.quipOutlinesEnabled);
+        y = legions_client$addIntSlider(leftX, y, controlWidth, "Quip Outline Width", 1, 8, LegionsClient.CONFIG.quipOutlineWidth, value -> LegionsClient.CONFIG.quipOutlineWidth = value, LEGIONS_DEFAULT_CONFIG.quipOutlineWidth);
         y = legions_client$addToggle(leftX, y, controlWidth, "Enemy Highlights", () -> LegionsClient.CONFIG.enemyHighlightsEnabled, value -> LegionsClient.CONFIG.enemyHighlightsEnabled = value, LEGIONS_DEFAULT_CONFIG.enemyHighlightsEnabled);
         y = legions_client$addToggle(leftX, y, controlWidth, "Dynamic Highlight Opacity", () -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled, value -> LegionsClient.CONFIG.dynamicHighlightOpacityEnabled = value, LEGIONS_DEFAULT_CONFIG.dynamicHighlightOpacityEnabled);
         y = legions_client$addToggle(leftX, y, controlWidth, "Teammate Attack Warning", () -> LegionsClient.CONFIG.teammateAttackWarningEnabled, value -> LegionsClient.CONFIG.teammateAttackWarningEnabled = value, LEGIONS_DEFAULT_CONFIG.teammateAttackWarningEnabled);
@@ -212,6 +214,9 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
                 rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
                         "Nametags Any Server", LEGIONS_DEFAULT_CONFIG.ratingNametagsIgnoreServerList, () -> LegionsClient.CONFIG.ratingNametagsIgnoreServerList, value -> LegionsClient.CONFIG.ratingNametagsIgnoreServerList = value);
             }
+            rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
+                    "Quip Outlines", LEGIONS_DEFAULT_CONFIG.quipOutlinesEnabled, () -> LegionsClient.CONFIG.quipOutlinesEnabled, value -> LegionsClient.CONFIG.quipOutlinesEnabled = value);
+            rowY = legions_client$addNativeIntSlider(addIntSlider, intSetterType, leftX, rowY, controlWidth, "Quip Outline Width", LegionsClient.CONFIG.quipOutlineWidth, 1, 8, 1, LEGIONS_DEFAULT_CONFIG.quipOutlineWidth, () -> LegionsClient.CONFIG.quipOutlineWidth, value -> LegionsClient.CONFIG.quipOutlineWidth = value);
             rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
                     "Enemy Highlights", LEGIONS_DEFAULT_CONFIG.enemyHighlightsEnabled, () -> LegionsClient.CONFIG.enemyHighlightsEnabled, value -> LegionsClient.CONFIG.enemyHighlightsEnabled = value);
             rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
@@ -515,7 +520,7 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
         if (query.isBlank()) {
             return true;
         }
-        String terms = "legions lc server ip ips address addresses list domain rating quip quips ranking total totals sum nametag nametags any ignore bypass enemy highlight dynamic fixed armor spectator glow custom world border circle cylinder glitter team ping customize keybind key mouse row rows duplicate color audience last attacker attacked attack block distance label arrow offscreen edge scale ui opacity fight detector radius marker refresh local spectator team hud team counter team count player count scoreboard scoreboard teams left players left count move opponent opponents shown limit hidden hide render optimization adaptive distance fps performance opacity";
+        String terms = "legions lc server ip ips address addresses list domain rating quip quips outline outlines ranking total totals sum nametag nametags any ignore bypass enemy highlight dynamic fixed armor spectator glow custom world border circle cylinder glitter team ping customize keybind key mouse row rows duplicate color audience last attacker attacked attack block distance label arrow offscreen edge scale ui opacity fight detector radius marker refresh local spectator team hud team counter team count player count scoreboard scoreboard teams left players left count move opponent opponents shown limit hidden hide render optimization adaptive distance fps performance opacity";
         return legions_client$matchesSearch(query, terms);
     }
 

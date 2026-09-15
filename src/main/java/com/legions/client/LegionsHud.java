@@ -294,7 +294,7 @@ public final class LegionsHud {
             }
 
             String key = team.getName();
-            int quips = LegionsFeatures.getQuips(client, entry.getProfile().name());
+            int quips = LegionsFeatures.getQuips(client, entry.getProfile().name(), entry.getProfile().id());
             int quipTotal = quips < 0 ? 0 : quips;
             int knownQuips = quips < 0 ? 0 : 1;
             MutableTeamCount current = teamCountScratch.get(key);
