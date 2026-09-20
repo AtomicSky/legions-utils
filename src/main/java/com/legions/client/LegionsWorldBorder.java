@@ -159,11 +159,9 @@ public final class LegionsWorldBorder {
         double lastConnectorY = Math.min(maxY, cameraY + connectorRange);
 
         for (BorderSegment segment : borderSegments) {
-            Vec3d bottomFirst = new Vec3d(segment.firstX, minY, segment.firstZ);
-            Vec3d bottomSecond = new Vec3d(segment.secondX, minY, segment.secondZ);
-            Vec3d topSecond = new Vec3d(segment.secondX, maxY, segment.secondZ);
-            Vec3d topFirst = new Vec3d(segment.firstX, maxY, segment.firstZ);
-            GizmoDrawing.quad(bottomFirst, bottomSecond, topSecond, topFirst, wallStyle);
+            segment.updateWallVertices(minY, maxY);
+            GizmoDrawing.quad(segment.bottomFirst, segment.bottomSecond,
+                    segment.topSecond, segment.topFirst, wallStyle);
 
             for (double y = firstConnectorY; y <= lastConnectorY; y += CONNECTOR_BAND_SPACING) {
                 GizmoDrawing.line(new Vec3d(segment.firstX, y, segment.firstZ),
@@ -653,6 +651,28 @@ public final class LegionsWorldBorder {
     private record CircleFit(double centerX, double centerZ, double radius) {
     }
 
-    private record BorderSegment(double firstX, double firstZ, double secondX, double secondZ) {
+    private static final class BorderSegment {
+        private final double firstX, firstZ, secondX, secondZ;
+        private double cachedMinY = Double.NaN, cachedMaxY = Double.NaN;
+        private Vec3d bottomFirst, bottomSecond, topSecond, topFirst;
+
+        private BorderSegment(double firstX, double firstZ, double secondX, double secondZ) {
+            this.firstX = firstX;
+            this.firstZ = firstZ;
+            this.secondX = secondX;
+            this.secondZ = secondZ;
+        }
+
+        private void updateWallVertices(double minY, double maxY) {
+            if (cachedMinY == minY && cachedMaxY == maxY) {
+                return;
+            }
+            cachedMinY = minY;
+            cachedMaxY = maxY;
+            bottomFirst = new Vec3d(firstX, minY, firstZ);
+            bottomSecond = new Vec3d(secondX, minY, secondZ);
+            topSecond = new Vec3d(secondX, maxY, secondZ);
+            topFirst = new Vec3d(firstX, maxY, firstZ);
+        }
     }
 }

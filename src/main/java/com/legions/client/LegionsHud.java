@@ -34,6 +34,7 @@ public final class LegionsHud {
     private static Object teamCountCacheHandler;
     private static long teamCountCacheTick = Long.MIN_VALUE;
     private static int teamCountCacheSize = -1;
+    private static boolean teamCountCacheRatingsEnabled;
     private static UUID lastTeamHudPlayerUuid;
     private static String lastTeamHudSourceName;
     private static String lastTeamHudTeamName;
@@ -278,7 +279,9 @@ public final class LegionsHud {
         ClientPlayNetworkHandler networkHandler = client.getNetworkHandler();
         int size = networkHandler.getPlayerList().size();
         long tick = client.world == null ? Long.MIN_VALUE : client.world.getTime();
-        if (teamCountCacheHandler == networkHandler && teamCountCacheTick == tick && teamCountCacheSize == size) {
+        boolean ratingsEnabled = teamRatingTotalsEnabled();
+        if (teamCountCacheHandler == networkHandler && teamCountCacheTick == tick && teamCountCacheSize == size
+                && teamCountCacheRatingsEnabled == ratingsEnabled) {
             return teamCountCache;
         }
 
@@ -294,7 +297,8 @@ public final class LegionsHud {
             }
 
             String key = team.getName();
-            int quips = LegionsFeatures.getQuips(client, entry.getProfile().name(), entry.getProfile().id());
+            int quips = ratingsEnabled
+                    ? LegionsFeatures.getQuips(client, entry.getProfile().name(), entry.getProfile().id()) : -1;
             int quipTotal = quips < 0 ? 0 : quips;
             int knownQuips = quips < 0 ? 0 : 1;
             MutableTeamCount current = teamCountScratch.get(key);
@@ -309,6 +313,7 @@ public final class LegionsHud {
         teamCountCacheHandler = networkHandler;
         teamCountCacheTick = tick;
         teamCountCacheSize = size;
+        teamCountCacheRatingsEnabled = ratingsEnabled;
         teamCountCache.clear();
         for (MutableTeamCount count : teamCountScratch.values()) {
             teamCountCache.add(count.toTeamCount());

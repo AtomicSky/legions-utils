@@ -736,12 +736,12 @@ public final class LegionsPingController {
                 || LegionsFeatures.isSpectatorTeam(player)) {
             return null;
         }
-        if (!hasPlayerLineOfSight(client, cameraPos, player, camera)) {
-            return null;
-        }
-
         Team team = player.getScoreboardTeam();
         if (team == null || team.getName() == null || team.getName().isBlank()) {
+            return null;
+        }
+        // Reject ineligible players before performing world collision raycasts.
+        if (!hasPlayerLineOfSight(client, cameraPos, player, camera)) {
             return null;
         }
 

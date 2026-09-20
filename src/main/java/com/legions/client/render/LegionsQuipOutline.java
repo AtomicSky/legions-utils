@@ -23,8 +23,6 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -77,12 +75,12 @@ public final class LegionsQuipOutline {
                 || !(state instanceof LegionsPlayerOverlayRenderStateAccess access)) {
             return;
         }
-        List<ModelPart> visibleParts = snapshotVisibleParts(model.getRootPart());
-        if (!access.legions_client$markQuipOutlinePass(new SubmissionKey(model, visibleParts))) {
-            return;
-        }
         int color = access.legions_client$getQuipOutlineColor();
         if (color == 0) {
+            return;
+        }
+        List<ModelPart> visibleParts = snapshotVisibleParts(model.getRootPart());
+        if (!access.legions_client$markQuipOutlinePass(new SubmissionKey(model, visibleParts))) {
             return;
         }
         float expansion = access.legions_client$getQuipOutlineExpansion();
@@ -92,14 +90,14 @@ public final class LegionsQuipOutline {
             MatrixStack posedMatrices = new MatrixStack();
             posedMatrices.peek().copy(entry);
             renderPart(model.getRootPart(), posedMatrices, vertices, opaqueColor, expansion,
-                    identitySet(visibleParts), model instanceof PlayerEntityModel, true);
+                    visibleParts, model instanceof PlayerEntityModel, true);
         });
     }
 
     private static void renderPart(ModelPart part, MatrixStack matrices, VertexConsumer vertices,
-                                   int color, float expansion, Set<ModelPart> visibleParts,
+                                   int color, float expansion, List<ModelPart> visibleParts,
                                    boolean skipSecondarySkinParts, boolean root) {
-        if (!visibleParts.contains(part)) {
+        if (!containsIdentity(visibleParts, part)) {
             return;
         }
         matrices.push();
@@ -122,7 +120,8 @@ public final class LegionsQuipOutline {
     private static List<ModelPart> snapshotVisibleParts(ModelPart root) {
         List<ModelPart> visibleParts = new ArrayList<>();
         collectVisibleParts(root, visibleParts);
-        return List.copyOf(visibleParts);
+        // Owned by this queued command; never mutated after submission.
+        return visibleParts;
     }
 
     private static void collectVisibleParts(ModelPart part, List<ModelPart> visibleParts) {
@@ -135,10 +134,13 @@ public final class LegionsQuipOutline {
         }
     }
 
-    private static Set<ModelPart> identitySet(List<ModelPart> parts) {
-        Set<ModelPart> result = Collections.newSetFromMap(new IdentityHashMap<>());
-        result.addAll(parts);
-        return result;
+    private static boolean containsIdentity(List<ModelPart> parts, ModelPart target) {
+        for (int i = 0; i < parts.size(); i++) {
+            if (parts.get(i) == target) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static final class SubmissionKey {

@@ -34,6 +34,7 @@ public final class LegionsFeatures {
     private static final int MAX_HIGHLIGHT_OVERLAY_ALPHA = 255;
     private static final Set<UUID> visibleOpponentCache = new HashSet<>();
     private static final Map<String, TabListTag> tabListTagCache = new HashMap<>();
+    private static final Map<String, UUID> tabListUuidCache = new HashMap<>();
     private static final Map<UUID, TabListTag> backendRatingTagCache = new HashMap<>();
     private static final Map<String, String> normalizedPlayerNameCache = new HashMap<>();
     private static final Map<String, Boolean> spectatorTeamNameCache = new HashMap<>();
@@ -545,16 +546,19 @@ public final class LegionsFeatures {
         }
 
         tabListTagCache.clear();
+        tabListUuidCache.clear();
         tabListTagCacheHandler = networkHandler;
         tabListTagCacheTick = tick;
         tabListTagCacheSize = size;
 
         for (PlayerListEntry entry : networkHandler.getPlayerList()) {
+            String normalizedName = normalizedPlayerName(entry.getProfile().name());
+            tabListUuidCache.putIfAbsent(normalizedName, entry.getProfile().id());
             Text displayName = entry.getDisplayName();
             String text = displayName == null ? entry.getProfile().name() : displayName.getString();
             TabListTag tag = parseTabListTag(text);
             if (tag != null) {
-                tabListTagCache.put(normalizedPlayerName(entry.getProfile().name()), tag);
+                tabListTagCache.put(normalizedName, tag);
             }
         }
     }
@@ -567,12 +571,8 @@ public final class LegionsFeatures {
         if (normalizedName.isEmpty()) {
             return null;
         }
-        for (PlayerListEntry entry : client.getNetworkHandler().getPlayerList()) {
-            if (entry != null && normalizedName.equals(normalizedPlayerName(entry.getProfile().name()))) {
-                return entry.getProfile().id();
-            }
-        }
-        return null;
+        refreshTabListTagCache(client);
+        return tabListUuidCache.get(normalizedName);
     }
 
     private static Text getAtomicsTierSuffix(PlayerEntity player) {
