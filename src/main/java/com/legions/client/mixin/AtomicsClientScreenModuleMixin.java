@@ -165,6 +165,7 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
         y = legions_client$addSubHeader(leftX, y, controlWidth, "Player Visibility");
         y = legions_client$addToggle(leftX, y, controlWidth, "Adaptive Performance", () -> LegionsClient.CONFIG.adaptivePerformanceEnabled, value -> LegionsClient.CONFIG.adaptivePerformanceEnabled = value, LEGIONS_DEFAULT_CONFIG.adaptivePerformanceEnabled);
         y = legions_client$addToggle(leftX, y, controlWidth, "Limit Opponents Shown", () -> LegionsClient.CONFIG.opponentLimitEnabled, value -> LegionsClient.CONFIG.opponentLimitEnabled = value, LEGIONS_DEFAULT_CONFIG.opponentLimitEnabled);
+        y = legions_client$addToggle(leftX, y, controlWidth, "Cull Teammates", () -> LegionsClient.CONFIG.cullTeammatesEnabled, value -> LegionsClient.CONFIG.cullTeammatesEnabled = value, LEGIONS_DEFAULT_CONFIG.cullTeammatesEnabled);
         if (LegionsClient.CONFIG.opponentLimitEnabled) {
             y = legions_client$addIntSlider(leftX, y, controlWidth, "Opponents Shown", 1, 20, LegionsClient.CONFIG.opponentLimit, value -> LegionsClient.CONFIG.opponentLimit = value, LEGIONS_DEFAULT_CONFIG.opponentLimit);
         }
@@ -312,6 +313,8 @@ public abstract class AtomicsClientScreenModuleMixin extends Screen {
                     "Adaptive Performance", LEGIONS_DEFAULT_CONFIG.adaptivePerformanceEnabled, () -> LegionsClient.CONFIG.adaptivePerformanceEnabled, value -> LegionsClient.CONFIG.adaptivePerformanceEnabled = value);
             rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
                     "Limit Opponents Shown", LEGIONS_DEFAULT_CONFIG.opponentLimitEnabled, () -> LegionsClient.CONFIG.opponentLimitEnabled, value -> LegionsClient.CONFIG.opponentLimitEnabled = value);
+            rowY = legions_client$addNativeToggle(addToggle, toggleSetterType, leftX, rowY, controlWidth,
+                    "Cull Teammates", LEGIONS_DEFAULT_CONFIG.cullTeammatesEnabled, () -> LegionsClient.CONFIG.cullTeammatesEnabled, value -> LegionsClient.CONFIG.cullTeammatesEnabled = value);
             if (LegionsClient.CONFIG.opponentLimitEnabled) {
                 rowY = legions_client$addNativeIntSlider(addIntSlider, intSetterType, leftX, rowY, controlWidth,
                         "Opponents Shown", LegionsClient.CONFIG.opponentLimit, 1, 20, 1, LEGIONS_DEFAULT_CONFIG.opponentLimit,

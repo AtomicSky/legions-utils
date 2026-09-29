@@ -314,9 +314,17 @@ public final class LegionsHud {
         teamCountCacheTick = tick;
         teamCountCacheSize = size;
         teamCountCacheRatingsEnabled = ratingsEnabled;
-        teamCountCache.clear();
+        int row = 0;
         for (MutableTeamCount count : teamCountScratch.values()) {
-            teamCountCache.add(count.toTeamCount());
+            if (row == teamCountCache.size()) {
+                teamCountCache.add(count.toTeamCount());
+            } else if (!count.matches(teamCountCache.get(row))) {
+                teamCountCache.set(row, count.toTeamCount());
+            }
+            row++;
+        }
+        while (teamCountCache.size() > row) {
+            teamCountCache.removeLast();
         }
         teamCountScratch.clear();
         return teamCountCache;
@@ -438,6 +446,8 @@ public final class LegionsHud {
         private final String name;
         private final int color;
         private final int count;
+        private final int ratingTotal;
+        private final int knownRatings;
         private final String countText;
         private final String ratingText;
 
@@ -445,6 +455,8 @@ public final class LegionsHud {
             this.name = name;
             this.color = color;
             this.count = count;
+            this.ratingTotal = ratingTotal;
+            this.knownRatings = knownRatings;
             this.countText = Integer.toString(count);
             this.ratingText = countText + " | " + formatRatingTotal(ratingTotal, knownRatings, count);
         }
@@ -484,6 +496,11 @@ public final class LegionsHud {
 
         private TeamCount toTeamCount() {
             return new TeamCount(name, color, count, ratingTotal, knownRatings);
+        }
+
+        private boolean matches(TeamCount other) {
+            return name.equals(other.name) && color == other.color && count == other.count
+                    && ratingTotal == other.ratingTotal && knownRatings == other.knownRatings;
         }
     }
 

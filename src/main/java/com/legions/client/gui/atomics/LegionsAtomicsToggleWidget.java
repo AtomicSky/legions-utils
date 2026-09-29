@@ -9,14 +9,14 @@ import net.minecraft.text.Text;
 
 public final class LegionsAtomicsToggleWidget extends ClickableWidget {
     private final TextRenderer textRenderer;
-    private final String label;
+    private final Text valueText;
     private final boolean enabled;
     private final Runnable action;
 
     public LegionsAtomicsToggleWidget(TextRenderer textRenderer, int x, int y, int width, int height, String label, boolean enabled, Runnable action) {
         super(x, y, width, height, Text.literal(label));
         this.textRenderer = textRenderer;
-        this.label = label;
+        this.valueText = Text.literal(enabled ? "ON" : "OFF");
         this.enabled = enabled;
         this.action = action;
     }
@@ -31,10 +31,9 @@ public final class LegionsAtomicsToggleWidget extends ClickableWidget {
         context.fill(x, y, x + 1, y + height, LegionsAtomicsUi.PANEL_BORDER);
         context.fill(x + width - 1, y, x + width, y + height, LegionsAtomicsUi.PANEL_BORDER);
 
-        String value = enabled ? "ON" : "OFF";
         int valueColor = enabled ? LegionsAtomicsUi.ACCENT : LegionsAtomicsUi.TEXT_MUTED;
-        context.drawTextWithShadow(textRenderer, Text.literal(label), x + 8, y + 7, LegionsAtomicsUi.TEXT_MAIN);
-        context.drawTextWithShadow(textRenderer, Text.literal(value), x + width - textRenderer.getWidth(value) - 8, y + 7, valueColor);
+        context.drawTextWithShadow(textRenderer, getMessage(), x + 8, y + 7, LegionsAtomicsUi.TEXT_MAIN);
+        context.drawTextWithShadow(textRenderer, valueText, x + width - textRenderer.getWidth(valueText) - 8, y + 7, valueColor);
     }
 
     @Override

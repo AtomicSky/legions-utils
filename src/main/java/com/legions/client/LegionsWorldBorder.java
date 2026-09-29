@@ -72,6 +72,8 @@ public final class LegionsWorldBorder {
     private static CircleFit displayedCircle;
     private static boolean displayingPredictedCircle;
     private static double selectedHeightY = Double.NaN;
+    private static String cachedBorderColor;
+    private static int cachedBorderRgb = 0xFF5555;
 
     private LegionsWorldBorder() {
     }
@@ -163,9 +165,9 @@ public final class LegionsWorldBorder {
             GizmoDrawing.quad(segment.bottomFirst, segment.bottomSecond,
                     segment.topSecond, segment.topFirst, wallStyle);
 
-            for (double y = firstConnectorY; y <= lastConnectorY; y += CONNECTOR_BAND_SPACING) {
-                GizmoDrawing.line(new Vec3d(segment.firstX, y, segment.firstZ),
-                        new Vec3d(segment.secondX, y, segment.secondZ),
+            segment.updateConnectorVertices(firstConnectorY, lastConnectorY);
+            for (int i = 0; i < segment.connectorVertices.length; i += 2) {
+                GizmoDrawing.line(segment.connectorVertices[i], segment.connectorVertices[i + 1],
                         strokeColor, BORDER_STROKE_WIDTH);
             }
         }
@@ -212,12 +214,17 @@ public final class LegionsWorldBorder {
         if (color == null) {
             return 0xFF5555;
         }
+        if (color.equals(cachedBorderColor)) {
+            return cachedBorderRgb;
+        }
+        cachedBorderColor = color;
         String hex = color.startsWith("#") ? color.substring(1) : color;
         try {
-            return Integer.parseInt(hex, 16) & 0xFFFFFF;
+            cachedBorderRgb = Integer.parseInt(hex, 16) & 0xFFFFFF;
         } catch (NumberFormatException ignored) {
-            return 0xFF5555;
+            cachedBorderRgb = 0xFF5555;
         }
+        return cachedBorderRgb;
     }
 
     private static int withAlpha(int rgb, int alpha) {
@@ -655,6 +662,8 @@ public final class LegionsWorldBorder {
         private final double firstX, firstZ, secondX, secondZ;
         private double cachedMinY = Double.NaN, cachedMaxY = Double.NaN;
         private Vec3d bottomFirst, bottomSecond, topSecond, topFirst;
+        private double cachedFirstConnectorY = Double.NaN;
+        private Vec3d[] connectorVertices = new Vec3d[0];
 
         private BorderSegment(double firstX, double firstZ, double secondX, double secondZ) {
             this.firstX = firstX;
@@ -673,6 +682,23 @@ public final class LegionsWorldBorder {
             bottomSecond = new Vec3d(secondX, minY, secondZ);
             topSecond = new Vec3d(secondX, maxY, secondZ);
             topFirst = new Vec3d(firstX, maxY, firstZ);
+        }
+
+        private void updateConnectorVertices(double firstY, double lastY) {
+            int count = lastY < firstY ? 0 : (int) Math.floor((lastY - firstY) / CONNECTOR_BAND_SPACING) + 1;
+            if (Double.compare(cachedFirstConnectorY, firstY) == 0 && connectorVertices.length == count * 2) {
+                return;
+            }
+            cachedFirstConnectorY = firstY;
+            if (connectorVertices.length != count * 2) {
+                connectorVertices = new Vec3d[count * 2];
+            }
+            double y = firstY;
+            for (int i = 0; i < count; i++, y += CONNECTOR_BAND_SPACING) {
+                // Immutable positions can safely be shared by queued render commands.
+                connectorVertices[i * 2] = new Vec3d(firstX, y, firstZ);
+                connectorVertices[i * 2 + 1] = new Vec3d(secondX, y, secondZ);
+            }
         }
     }
 }

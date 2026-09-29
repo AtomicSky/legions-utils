@@ -229,7 +229,7 @@ public final class LegionsPingController {
     }
 
     private static PingMark enabledMarkedPlayer(PlayerEntity player) {
-        if (player == null) {
+        if (player == null || markedPlayers.isEmpty()) {
             return null;
         }
         boolean pingsEnabled = teamPingEnabled(MinecraftClient.getInstance());
@@ -318,9 +318,10 @@ public final class LegionsPingController {
                 PingMark mark = entry.getValue();
                 if (now - mark.markedAt() <= pingTtl) {
                     Vec3d pos = Vec3d.ofCenter(entry.getKey());
-                    if (hasClearPathToPoint(client, cameraPos, pos,
+                    ScreenProjection projection = projectMarkerToScreenEdge(projectionContext, pos);
+                    if (!projection.visible() && hasClearPathToPoint(client, cameraPos, pos,
                             BLOCK_MARKER_OCCLUSION_TOLERANCE_SQUARED, camera)) {
-                        drawMarkerArrow(context, client, projectionContext, cameraPos, scale,
+                        drawMarkerArrow(context, client, projectionContext, projection, cameraPos, scale,
                                 pos, mark.color(), mark.icon(), 100);
                     }
                 }
@@ -331,12 +332,15 @@ public final class LegionsPingController {
                     continue;
                 }
                 PlayerEntity player = findPlayer(client, entry.getKey());
-                if (player == null || player.getUuid().equals(client.player.getUuid())
-                        || !hasPlayerLineOfSight(client, cameraPos, player, camera)) {
+                if (player == null || player.getUuid().equals(client.player.getUuid())) {
                     continue;
                 }
-                drawMarkerArrow(context, client, projectionContext, cameraPos, scale,
-                        player.getBoundingBox().getCenter(), mark.color(), mark.icon(), 100);
+                Vec3d pos = player.getBoundingBox().getCenter();
+                ScreenProjection projection = projectMarkerToScreenEdge(projectionContext, pos);
+                if (!projection.visible() && hasPlayerLineOfSight(client, cameraPos, player, camera)) {
+                    drawMarkerArrow(context, client, projectionContext, projection, cameraPos, scale,
+                            pos, mark.color(), mark.icon(), 100);
+                }
             }
         }
 
@@ -346,9 +350,10 @@ public final class LegionsPingController {
                 int opacity = fightMarkerOpacity(mark, now);
                 if (opacity > 0) {
                     Vec3d pos = fightMarkerPosition(client, mark, now);
-                    if (hasClearPathToPoint(client, cameraPos, pos,
+                    ScreenProjection projection = projectMarkerToScreenEdge(projectionContext, pos);
+                    if (!projection.visible() && hasClearPathToPoint(client, cameraPos, pos,
                             BLOCK_MARKER_OCCLUSION_TOLERANCE_SQUARED, camera)) {
-                        drawMarkerArrow(context, client, projectionContext, cameraPos, scale,
+                        drawMarkerArrow(context, client, projectionContext, projection, cameraPos, scale,
                                 pos, fightColor, PingRow.ICON_FIRE, opacity);
                     }
                 }
@@ -357,13 +362,9 @@ public final class LegionsPingController {
     }
 
     private static void drawMarkerArrow(DrawContext context, MinecraftClient client,
-                                        MarkerProjectionContext projectionContext, Vec3d cameraPos, float scale,
+                                        MarkerProjectionContext projectionContext, ScreenProjection projection,
+                                        Vec3d cameraPos, float scale,
                                         Vec3d pos, int color, int icon, int markerOpacity) {
-        ScreenProjection projection = projectMarkerToScreenEdge(projectionContext, pos);
-        if (projection.visible()) {
-            return;
-        }
-
         ArrowPlacement placement = stackedArrowPlacement(projection, arrowPlacementScratch, arrowPlacementCount,
                 projectionContext, scale);
         arrowPlacementCount++;
@@ -667,21 +668,30 @@ public final class LegionsPingController {
             }
         }
 
-        fightCandidateScratch.sort((first, second) -> {
-            int players = Integer.compare(second.players(), first.players());
-            if (players != 0) {
-                return players;
+        selectBestFightCandidate();
+    }
+
+    private static void selectBestFightCandidate() {
+        // Only the winning candidate is consumed. Keep the same stable tie-breaking
+        // as the previous sort without ordering all the unused candidates.
+        if (!fightCandidateScratch.isEmpty()) {
+            int best = 0;
+            for (int i = 1; i < fightCandidateScratch.size(); i++) {
+                if (compareFightCandidates(fightCandidateScratch.get(i), fightCandidateScratch.get(best)) < 0) {
+                    best = i;
+                }
             }
-            int spread = Double.compare(first.spreadSquared(), second.spreadSquared());
-            if (spread != 0) {
-                return spread;
-            }
-            int teams = Integer.compare(second.teams(), first.teams());
-            if (teams != 0) {
-                return teams;
-            }
-            return Double.compare(first.distanceSquared(), second.distanceSquared());
-        });
+            java.util.Collections.swap(fightCandidateScratch, 0, best);
+        }
+    }
+
+    private static int compareFightCandidates(FightCandidate first, FightCandidate second) {
+        int players = Integer.compare(second.players(), first.players());
+        if (players != 0) return players;
+        int spread = Double.compare(first.spreadSquared(), second.spreadSquared());
+        if (spread != 0) return spread;
+        int teams = Integer.compare(second.teams(), first.teams());
+        return teams != 0 ? teams : Double.compare(first.distanceSquared(), second.distanceSquared());
     }
 
     private static void recycleFightScratch() {

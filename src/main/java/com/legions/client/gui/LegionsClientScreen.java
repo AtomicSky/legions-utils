@@ -170,6 +170,8 @@ public class LegionsClientScreen extends Screen {
         y += ROW_SPACING;
         addToggle(controlX, screenY(y), controlWidth, "Limit Opponents Shown", () -> LegionsClient.CONFIG.opponentLimitEnabled, value -> LegionsClient.CONFIG.opponentLimitEnabled = value, defaultConfig.opponentLimitEnabled);
         y += ROW_SPACING;
+        addToggle(controlX, screenY(y), controlWidth, "Cull Teammates", () -> LegionsClient.CONFIG.cullTeammatesEnabled, value -> LegionsClient.CONFIG.cullTeammatesEnabled = value, defaultConfig.cullTeammatesEnabled);
+        y += ROW_SPACING;
         if (LegionsClient.CONFIG.opponentLimitEnabled) {
             addSlider(controlX, screenY(y), controlWidth, "Opponents Shown", 1, 20, () -> LegionsClient.CONFIG.opponentLimit, value -> LegionsClient.CONFIG.opponentLimit = value, defaultConfig.opponentLimit);
             y += ROW_SPACING;

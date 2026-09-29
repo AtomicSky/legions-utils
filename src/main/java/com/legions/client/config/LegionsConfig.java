@@ -62,6 +62,7 @@ public class LegionsConfig {
     public boolean teamCountOverlayEnabled = true;
     public boolean teamRatingTotalsEnabled = true;
     public boolean opponentLimitEnabled = false;
+    public boolean cullTeammatesEnabled = false;
     public boolean playerRenderOptimizationEnabled = false;
     public boolean adaptivePerformanceEnabled = false;
     public int opponentLimit = 6;
@@ -187,6 +188,7 @@ public class LegionsConfig {
         copy.teamCountOverlayEnabled = teamCountOverlayEnabled;
         copy.teamRatingTotalsEnabled = teamRatingTotalsEnabled;
         copy.opponentLimitEnabled = opponentLimitEnabled;
+        copy.cullTeammatesEnabled = cullTeammatesEnabled;
         copy.playerRenderOptimizationEnabled = playerRenderOptimizationEnabled;
         copy.adaptivePerformanceEnabled = adaptivePerformanceEnabled;
         copy.opponentLimit = opponentLimit;
@@ -243,6 +245,7 @@ public class LegionsConfig {
                 && teamCountOverlayEnabled == other.teamCountOverlayEnabled
                 && teamRatingTotalsEnabled == other.teamRatingTotalsEnabled
                 && opponentLimitEnabled == other.opponentLimitEnabled
+                && cullTeammatesEnabled == other.cullTeammatesEnabled
                 && playerRenderOptimizationEnabled == other.playerRenderOptimizationEnabled
                 && adaptivePerformanceEnabled == other.adaptivePerformanceEnabled
                 && opponentLimit == other.opponentLimit
@@ -376,7 +379,7 @@ public class LegionsConfig {
             return false;
         }
         for (int i = 0; i < normalizedFirst.size(); i++) {
-            if (!normalizedFirst.get(i).sameSettings(normalizedSecond.get(i))) {
+            if (!normalizedFirst.get(i).sameNormalizedSettings(normalizedSecond.get(i))) {
                 return false;
             }
         }
@@ -528,23 +531,23 @@ public class LegionsConfig {
             return copy.normalize();
         }
 
-        private boolean sameSettings(PingRow other) {
-            PingRow normalizedOther = other == null ? new PingRow() : other.copy();
-            PingRow normalizedThis = copy();
-            return normalizedThis.keyType == normalizedOther.keyType
-                    && normalizedThis.keyCode == normalizedOther.keyCode
-                    && normalizedThis.presses == normalizedOther.presses
-                    && normalizedThis.targetSource == normalizedOther.targetSource
-                    && normalizedThis.targetType == normalizedOther.targetType
-                    && normalizedThis.message.equals(normalizedOther.message)
-                    && normalizedThis.teammateMessage.equals(normalizedOther.teammateMessage)
-                    && normalizedThis.enemyMessage.equals(normalizedOther.enemyMessage)
-                    && normalizedThis.color.equals(normalizedOther.color)
-                    && normalizedThis.visualAudience == normalizedOther.visualAudience
-                    && normalizedThis.icon == normalizedOther.icon
-                    && normalizedThis.messageIcon == normalizedOther.messageIcon
-                    && normalizedThis.teammateMessageIcon == normalizedOther.teammateMessageIcon
-                    && normalizedThis.enemyMessageIcon == normalizedOther.enemyMessageIcon;
+        // Both lists have already passed through normalizePingRows. The settings
+        // screen calls this every frame; do not copy and normalize each row again.
+        private boolean sameNormalizedSettings(PingRow other) {
+            return keyType == other.keyType
+                    && keyCode == other.keyCode
+                    && presses == other.presses
+                    && targetSource == other.targetSource
+                    && targetType == other.targetType
+                    && message.equals(other.message)
+                    && teammateMessage.equals(other.teammateMessage)
+                    && enemyMessage.equals(other.enemyMessage)
+                    && color.equals(other.color)
+                    && visualAudience == other.visualAudience
+                    && icon == other.icon
+                    && messageIcon == other.messageIcon
+                    && teammateMessageIcon == other.teammateMessageIcon
+                    && enemyMessageIcon == other.enemyMessageIcon;
         }
 
         private static String cleanMessage(String value, String fallback) {

@@ -33,6 +33,8 @@ public final class LegionsFeatures {
     private static final int MIN_HIGHLIGHT_OVERLAY_ALPHA = 128;
     private static final int MAX_HIGHLIGHT_OVERLAY_ALPHA = 255;
     private static final Set<UUID> visibleOpponentCache = new HashSet<>();
+    private static final Set<UUID> visibleTeammateCache = new HashSet<>();
+    private static boolean visibleCacheCullTeammates;
     private static final Map<String, TabListTag> tabListTagCache = new HashMap<>();
     private static final Map<String, UUID> tabListUuidCache = new HashMap<>();
     private static final Map<UUID, TabListTag> backendRatingTagCache = new HashMap<>();
@@ -49,6 +51,7 @@ public final class LegionsFeatures {
     private static ArrayList<String> cachedAllowedServerAddresses;
     private static boolean cachedServerAllowed;
     private static long visibleOpponentCacheTick = Long.MIN_VALUE;
+    private static Object visibleOpponentCacheWorld;
     private static UUID visibleOpponentCacheLocalPlayer;
     private static int visibleOpponentCacheLimit = -1;
     private static boolean visibleOpponentCacheEnabled;
@@ -157,8 +160,7 @@ public final class LegionsFeatures {
             return original;
         }
         Text base = ATOMICS_CLIENT_LOADED ? Text.literal(realUsername(player)) : original;
-        String originalText = original.getString();
-        if (!ATOMICS_CLIENT_LOADED && originalText.endsWith(suffix.getString())) {
+        if (!ATOMICS_CLIENT_LOADED && original.getString().endsWith(suffix.getString())) {
             return original;
         }
         return Text.empty().append(base).append(suffix);
@@ -293,6 +295,9 @@ public final class LegionsFeatures {
         if (!LegionsClient.enabled(client) || client.world == null || client.player == null || player == null) {
             return false;
         }
+        if (!opponentLimitEnabled() && !playerRenderOptimizationEnabled()) {
+            return false;
+        }
         if (player == client.player || LegionsPingController.isMarkedPlayer(player)) {
             return false;
         }
@@ -301,8 +306,16 @@ public final class LegionsFeatures {
         }
 
         boolean opponent = isOpponent(client.player, player);
+        boolean teammate = isTeammate(client.player, player);
+        if (teammate && !LegionsClient.CONFIG.cullTeammatesEnabled) {
+            return false;
+        }
         if (opponent && opponentLimitEnabled() && !visibleOpponentCache(client).contains(player.getUuid())) {
             return true;
+        }
+        if (teammate && opponentLimitEnabled()) {
+            visibleOpponentCache(client);
+            if (!visibleTeammateCache.contains(player.getUuid())) return true;
         }
 
         return shouldCullForRenderOptimization(client, player);
@@ -325,16 +338,20 @@ public final class LegionsFeatures {
         int visibleOpponents = LegionsAdaptivePerformance.effectiveOpponentLimit(
                 LegionsClient.CONFIG.opponentLimit);
         boolean limitEnabled = opponentLimitEnabled();
-        if (visibleOpponentCacheTick == tick
+        if (visibleOpponentCacheWorld == client.world && visibleOpponentCacheTick == tick
                 && visibleOpponentCacheLocalPlayer != null
                 && visibleOpponentCacheLocalPlayer.equals(client.player.getUuid())
                 && visibleOpponentCacheLimit == visibleOpponents
                 && visibleOpponentCacheEnabled == limitEnabled
-                && visibleOpponentCachePlayerCount == playerCount) {
+                && visibleOpponentCachePlayerCount == playerCount
+                && visibleCacheCullTeammates == LegionsClient.CONFIG.cullTeammatesEnabled) {
             return visibleOpponentCache;
         }
 
         visibleOpponentCache.clear();
+        visibleTeammateCache.clear();
+        visibleCacheCullTeammates = LegionsClient.CONFIG.cullTeammatesEnabled;
+        visibleOpponentCacheWorld = client.world;
         visibleOpponentCacheTick = tick;
         visibleOpponentCacheLocalPlayer = client.player.getUuid();
         visibleOpponentCacheLimit = visibleOpponents;
@@ -362,6 +379,19 @@ public final class LegionsFeatures {
             visibleOpponentCache.add(visibleOpponentUuids[i]);
         }
         Arrays.fill(visibleOpponentUuids, 0, selectedOpponents, null);
+        if (visibleCacheCullTeammates) {
+            int selectedTeammates = 0;
+            for (PlayerEntity candidate : client.world.getPlayers()) {
+                if (candidate != localPlayer && isTeammate(localPlayer, candidate)) {
+                    selectedTeammates = insertVisibleOpponent(candidate.getUuid(), candidate.squaredDistanceTo(localPlayer),
+                            visibleOpponents, selectedTeammates);
+                }
+            }
+            for (int i = 0; i < selectedTeammates; i++) {
+                visibleTeammateCache.add(visibleOpponentUuids[i]);
+            }
+            Arrays.fill(visibleOpponentUuids, 0, selectedTeammates, null);
+        }
         return visibleOpponentCache;
     }
 
@@ -650,22 +680,18 @@ public final class LegionsFeatures {
         return UNKNOWN_RATING_TAG;
     }
 
-    private static Style quipStyle(TabListTag tag) {
-        Style style = Style.EMPTY.withColor(TextColor.fromRgb(quipColor(tag)));
-        return tag.numericRating >= 2000 ? style.withBold(true) : style;
-    }
-
     private static Text formatLegionsTag(TabListTag tag) {
-        Style style = quipStyle(tag);
-        Style bracketStyle = style.withColor(TextColor.fromRgb(tag.numericRating >= 2000 ? 0x000000 : 0xFFFFFF));
         return Text.empty()
-                .append(Text.literal("[").setStyle(bracketStyle))
-                .append(Text.literal(tag.value).setStyle(style))
-                .append(Text.literal("]").setStyle(bracketStyle));
+                .append(Text.literal("[").setStyle(tag.bracketStyle))
+                .append(Text.literal(tag.value).setStyle(tag.style))
+                .append(Text.literal("]").setStyle(tag.bracketStyle));
     }
 
     private static int quipColor(TabListTag tag) {
-        int rating = tag.numericRating;
+        return tag.color;
+    }
+
+    private static int computeQuipColor(int rating) {
         if (rating < 0) {
             return QUIP_UNKNOWN_COLOR;
         }
@@ -841,10 +867,17 @@ public final class LegionsFeatures {
     private static final class TabListTag {
         private final String value;
         private final int numericRating;
+        private final int color;
+        private final Style style;
+        private final Style bracketStyle;
 
         private TabListTag(String value, int numericRating) {
             this.value = value;
             this.numericRating = numericRating;
+            this.color = computeQuipColor(numericRating);
+            Style baseStyle = Style.EMPTY.withColor(TextColor.fromRgb(color));
+            this.style = numericRating >= 2000 ? baseStyle.withBold(true) : baseStyle;
+            this.bracketStyle = style.withColor(TextColor.fromRgb(numericRating >= 2000 ? 0x000000 : 0xFFFFFF));
         }
 
         private boolean isUnknown() {

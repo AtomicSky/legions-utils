@@ -9,14 +9,16 @@ import net.minecraft.text.Text;
 
 public final class LegionsAtomicsSectionHeaderWidget extends ClickableWidget {
     private final TextRenderer textRenderer;
-    private final String title;
+    private final Text markerText;
+    private final Text stateText;
     private final boolean collapsed;
     private final Runnable action;
 
     public LegionsAtomicsSectionHeaderWidget(TextRenderer textRenderer, int x, int y, int width, int height, String title, boolean collapsed, Runnable action) {
         super(x, y, width, height, Text.literal(title));
         this.textRenderer = textRenderer;
-        this.title = title;
+        this.markerText = Text.literal(collapsed ? ">" : "v");
+        this.stateText = Text.literal(collapsed ? "show" : "hide");
         this.collapsed = collapsed;
         this.action = action;
     }
@@ -31,11 +33,9 @@ public final class LegionsAtomicsSectionHeaderWidget extends ClickableWidget {
         context.fill(x, y + height - 1, x + width, y + height, LegionsAtomicsUi.PANEL_BORDER);
         context.fill(x, y, x + 3, y + height, collapsed ? LegionsAtomicsUi.TEXT_DIM : LegionsAtomicsUi.ACCENT);
 
-        String marker = collapsed ? ">" : "v";
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(marker), x + 15, y + 7, collapsed ? LegionsAtomicsUi.TEXT_MUTED : LegionsAtomicsUi.TEXT_MAIN);
-        context.drawTextWithShadow(textRenderer, Text.literal(title), x + 28, y + 7, LegionsAtomicsUi.TEXT_MAIN);
-        String state = collapsed ? "show" : "hide";
-        context.drawTextWithShadow(textRenderer, Text.literal(state), x + width - textRenderer.getWidth(state) - 10, y + 7, LegionsAtomicsUi.TEXT_MUTED);
+        context.drawCenteredTextWithShadow(textRenderer, markerText, x + 15, y + 7, collapsed ? LegionsAtomicsUi.TEXT_MUTED : LegionsAtomicsUi.TEXT_MAIN);
+        context.drawTextWithShadow(textRenderer, getMessage(), x + 28, y + 7, LegionsAtomicsUi.TEXT_MAIN);
+        context.drawTextWithShadow(textRenderer, stateText, x + width - textRenderer.getWidth(stateText) - 10, y + 7, LegionsAtomicsUi.TEXT_MUTED);
     }
 
     @Override
