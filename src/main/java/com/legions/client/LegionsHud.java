@@ -35,6 +35,10 @@ public final class LegionsHud {
     private static long teamCountCacheTick = Long.MIN_VALUE;
     private static int teamCountCacheSize = -1;
     private static boolean teamCountCacheRatingsEnabled;
+    private static final ArrayList<TeamCount> bedCountCache = new ArrayList<>();
+    private static final int[] bedCounts = new int[4];
+    private static long bedCacheTick = Long.MIN_VALUE;
+    private static int bedCacheRevision = -1;
     private static UUID lastTeamHudPlayerUuid;
     private static String lastTeamHudSourceName;
     private static String lastTeamHudTeamName;
@@ -244,7 +248,7 @@ public final class LegionsHud {
             context.drawTextWithShadow(client.textRenderer, count.name(), TEAM_COUNT_PADDING_X, rowTop + 1, count.color());
             String value = count.valueText();
             int valueX = width - TEAM_COUNT_PADDING_X - client.textRenderer.getWidth(value);
-            context.drawTextWithShadow(client.textRenderer, value, valueX, rowTop + 1, 0xFFFFFFFF);
+            context.drawTextWithShadow(client.textRenderer, value, valueX, rowTop + 1, count.valueColor);
         }
     }
 
@@ -263,11 +267,48 @@ public final class LegionsHud {
     }
 
     private static List<TeamCount> displayTeamCounts(MinecraftClient client, boolean preview) {
+        if (LegionsBedsLeft.active() && client != null && client.getNetworkHandler() != null) {
+            return collectBedCounts(client);
+        }
         List<TeamCount> counts = collectTeamCounts(client);
         if (preview && counts.isEmpty()) {
             return SAMPLE_TEAM_COUNTS;
         }
         return counts;
+    }
+
+    private static List<TeamCount> collectBedCounts(MinecraftClient client) {
+        long tick = client.world == null ? Long.MIN_VALUE : client.world.getTime();
+        int revision = LegionsBedsLeft.revision();
+        if (bedCacheTick == tick && bedCacheRevision == revision) return bedCountCache;
+        bedCacheTick = tick;
+        bedCacheRevision = revision;
+        java.util.Arrays.fill(bedCounts, 0);
+        for (PlayerListEntry entry : client.getNetworkHandler().getListedPlayerListEntries()) {
+            Team team = entry.getScoreboardTeam();
+            if (team == null || !LegionsBedsLeft.inSession(team.getName())) continue;
+            int index = LegionsBedsLeft.teamIndex(team.getName());
+            if (index < 0) continue;
+            LegionsBedsLeft.observe(index);
+            if (entry.getGameMode() != GameMode.SPECTATOR) bedCounts[index]++;
+        }
+        int row = 0;
+        for (int i = 0; i < bedCounts.length; i++) {
+            if (!LegionsBedsLeft.present(i)) continue;
+            boolean broken = LegionsBedsLeft.broken(i);
+            String name = LegionsBedsLeft.TEAMS[i];
+            int color = broken ? 0xFFFF6666 : 0xFF66FF77;
+            TeamCount old = row < bedCountCache.size() ? bedCountCache.get(row) : null;
+            if (old == null || !old.name.equalsIgnoreCase(name) || old.count != bedCounts[i] || old.valueColor != color) {
+                TeamCount value = new TeamCount(name.toUpperCase(Locale.ROOT), LegionsBedsLeft.COLORS[i], bedCounts[i], 0, 0);
+                value.bedText = broken ? bedCounts[i] + " left" : "BED ALIVE";
+                value.valueColor = color;
+                if (old == null) bedCountCache.add(value); else bedCountCache.set(row, value);
+            }
+            row++;
+        }
+        while (bedCountCache.size() > row) bedCountCache.removeLast();
+        return bedCountCache;
     }
 
     private static List<TeamCount> collectTeamCounts(MinecraftClient client) {
@@ -418,6 +459,7 @@ public final class LegionsHud {
     }
 
     private static String teamCountTitle() {
+        if (LegionsBedsLeft.active()) return "Beds Left";
         return teamRatingTotalsEnabled() ? "Team Ratings" : TEAM_COUNT_TITLE;
     }
 
@@ -450,6 +492,8 @@ public final class LegionsHud {
         private final int knownRatings;
         private final String countText;
         private final String ratingText;
+        private String bedText;
+        private int valueColor = 0xFFFFFFFF;
 
         private TeamCount(String name, int color, int count, int ratingTotal, int knownRatings) {
             this.name = name;
@@ -470,6 +514,7 @@ public final class LegionsHud {
         }
 
         private String valueText() {
+            if (bedText != null) return bedText;
             return teamRatingTotalsEnabled() ? ratingText : countText;
         }
     }

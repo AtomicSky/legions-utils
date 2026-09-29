@@ -45,12 +45,14 @@ public class LegionsClient implements ClientModInitializer {
                 client.setScreen(new LegionsClientScreen(client.currentScreen));
             }
             LegionsAdaptivePerformance.tick(client);
+            LegionsBedsLeft.tick(client);
             LegionsWorldBorder.tick(client);
             LegionsPingController.tick(client);
             LegionsSpectateLock.tick(client);
         });
 
         ClientReceiveMessageEvents.ALLOW_CHAT.register((message, signedMessage, sender, parameters, timestamp) -> {
+            LegionsBedsLeft.receive(message);
             if (LegionsPingController.shouldBlockIncomingPingText(message)) {
                 return false;
             }
@@ -68,9 +70,10 @@ public class LegionsClient implements ClientModInitializer {
         ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, parameters, timestamp) ->
                 LegionsPingController.receiveChatPing(message, sender)
         );
-        ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) ->
-                !LegionsPingController.shouldBlockIncomingPingText(message)
-        );
+        ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
+            if (!overlay) LegionsBedsLeft.receive(message);
+            return !LegionsPingController.shouldBlockIncomingPingText(message);
+        });
         ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> {
             if (!LegionsPingController.shouldCleanReceivedPingText(message)) {
                 return message;

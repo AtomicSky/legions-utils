@@ -20,7 +20,41 @@ public final class PerformanceRegressionChecks {
         checkRatingStyles();
         checkTeamRows();
         checkConfigComparison();
+        checkBedsLeft();
         System.out.println("PASS: border geometry/reuse, stable fight selection, rating styles, HUD row invalidation, config comparison");
+    }
+
+    private static void checkBedsLeft() {
+        LegionsBedsLeft.reset();
+        LegionsBedsLeft.accept("[Broadcast] blue bed is broken");
+        require(!LegionsBedsLeft.active(), "Bed broadcast enabled an ordinary round");
+        LegionsBedsLeft.accept("Someone: I mentioned HU:Bed Wars earlier");
+        require(!LegionsBedsLeft.active(), "Quoted signal activated bed HUD");
+        LegionsBedsLeft.accept("§a[Host] Steve: HU:Bed Wars");
+        require(LegionsBedsLeft.active(), "Decorated host signal not detected");
+        require(LegionsBedsLeft.present(1) && LegionsBedsLeft.present(2), "Default teams absent");
+        LegionsBedsLeft.accept("[Broadcast] BLUE bed is broken!");
+        require(LegionsBedsLeft.broken(1) && !LegionsBedsLeft.broken(2), "Wrong bed broken");
+        LegionsBedsLeft.accept("HU:Bed Wars");
+        require(LegionsBedsLeft.broken(1), "Duplicate signal restored a bed");
+        LegionsBedsLeft.accept("[Legions] purple bed is broken");
+        require(LegionsBedsLeft.present(3) && LegionsBedsLeft.broken(3), "Optional team not tracked");
+        require(LegionsBedsLeft.teamIndex("Blue2") == 1 && !LegionsBedsLeft.inSession("blue2"), "Session isolation failed");
+        String[] resets = {
+                "[Legions] Team Blue has won the game! Thanks for participating in this event!",
+                "[Legions] Unfortunately, the event you were participating in has been cancelled. Thanks for participating!",
+                "[Legions] Steve started hosting a Squads event on map Entangle!",
+                "[Legions] The game is starting...!"
+        };
+        for (String reset : resets) {
+            LegionsBedsLeft.accept(reset);
+            require(!LegionsBedsLeft.active() && !LegionsBedsLeft.broken(1), "Round state leaked: " + reset);
+            LegionsBedsLeft.accept("HU:Bed Wars");
+        }
+        LegionsBedsLeft.tick(null);
+        require(!LegionsBedsLeft.active(), "Disconnect retained Bed Wars state");
+        LegionsBedsLeft.reset();
+        System.out.println("PASS: Beds Left signal, broadcasts, duplicates, optional teams, session names, round resets");
     }
 
     private static void checkBorderVertices() throws Exception {
